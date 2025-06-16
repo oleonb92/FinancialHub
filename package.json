@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "framer-motion": "^12.16.0",
+    "react-swipeable-list": "^1.10.0",
+    "recharts": "^2.15.3"
+  }
+}
