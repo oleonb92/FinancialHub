@@ -8,15 +8,20 @@ User = get_user_model()
 
 class CustomUserAdmin(BaseUserAdmin):
     list_display = (
-        "username", "email", "first_name", "last_name", "organization", "role", "is_staff"
+        "username", "email", "first_name", "last_name", # "organization", 
+        "role", "is_staff"
     )
-    list_filter = ("role", "organization", "is_staff", "is_superuser", "is_active", "groups")
+    list_filter = (
+        "role",
+        # "organization",
+        "is_staff", "is_superuser", "is_active", "groups"
+    )
     search_fields = ("username", "first_name", "last_name", "email")
     ordering = ("username",)
     fieldsets = (
         (None, {"fields": ("username", "password")}),
         ("Personal info", {"fields": ("first_name", "last_name", "email", "birthdate", "avatar")}),
-        ("Organization", {"fields": ("organization", "role")}),
+        # ("Organization", {"fields": ("organization", "role")}),
         ("Preferences", {"fields": ("preferred_language", "notification_preferences", "ai_assistant_enabled")}),
         ("Account Type", {"fields": ("account_type", "pro_features", "pro_trial_until", "pro_features_list")}),
         ("Permissions", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
@@ -25,7 +30,7 @@ class CustomUserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('username', 'email', 'password1', 'password2', 'organization', 'role'),
+            'fields': ('username', 'email', 'password1', 'password2'), # 'organization', 'role'),
         }),
     )
 

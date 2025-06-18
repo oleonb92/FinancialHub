@@ -1,11 +1,12 @@
+"""
+URLs para los endpoints de IA.
+"""
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import AIInteractionViewSet, AIInsightViewSet, AIPredictionViewSet
+from .views import AIViewSet
 
 router = DefaultRouter()
-router.register(r'interactions', AIInteractionViewSet, basename='ai-interaction')
-router.register(r'insights', AIInsightViewSet, basename='ai-insight')
-router.register(r'predictions', AIPredictionViewSet, basename='ai-prediction')
+router.register(r'ai', AIViewSet, basename='ai')
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -3,28 +3,34 @@ from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 
 class User(AbstractUser):
-    ROLE_CHOICES = (
-        ('owner', 'Owner'),
-        ('admin', 'Admin'),
-        ('member', 'Member'),
-        ('accountant', 'Accountant'),
-        ('bookkeeper', 'Bookkeeper'),
-        ('advisor', 'Financial Advisor'),
-    )
+    ROLE_CHOICES = [
+        ('owner', _('Owner')),
+        ('admin', _('Admin')),
+        ('member', _('Member')),
+        ('accountant', _('Accountant')),
+        ('bookkeeper', _('Bookkeeper')),
+        ('advisor', _('Financial Advisor')),
+    ]
 
-    LANGUAGE_CHOICES = (
-        ('en', 'English'),
-        ('es', 'Spanish'),
-    )
+    LANGUAGE_CHOICES = [
+        ('en', _('English')),
+        ('es', _('Spanish')),
+    ]
 
-    ACCOUNT_TYPE_CHOICES = (
-        ('personal', 'Personal'),
-        ('accountant', 'Accountant'),
-    )
+    ACCOUNT_TYPE_CHOICES = [
+        ('personal', _('Personal')),
+        ('accountant', _('Accountant')),
+    ]
 
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, null=True, blank=True)
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        null=True,
+        blank=True
+    )
     organization = models.ForeignKey(
         'organizations.Organization',
         null=True,
@@ -35,7 +41,11 @@ class User(AbstractUser):
 
     was_approved = models.BooleanField(default=False)
     birthdate = models.DateField(null=True, blank=True)
-    preferred_language = models.CharField(max_length=2, choices=LANGUAGE_CHOICES, default='en')
+    preferred_language = models.CharField(
+        max_length=2,
+        choices=LANGUAGE_CHOICES,
+        default='en'
+    )
     notification_preferences = models.JSONField(default=dict, blank=True)
     ai_assistant_enabled = models.BooleanField(default=True)
 
@@ -43,28 +53,22 @@ class User(AbstractUser):
         max_length=20,
         choices=ACCOUNT_TYPE_CHOICES,
         default='personal',
-        help_text='Tipo de cuenta: personal o contador.'
+        help_text=_('Account type: personal or accountant.')
     )
     pro_features = models.BooleanField(
         default=False,
-        help_text='Indica si el usuario tiene acceso global a funcionalidades Pro (ej: contador pro).'
+        help_text=_('Indicates if the user has global access to Pro features (e.g., pro accountant).')
     )
-    pro_trial_until = models.DateTimeField(null=True, blank=True, help_text='Fecha hasta la que el usuario tiene trial Pro activo.')
-    
-    # Usar ArrayField en producción y JSONField en pruebas
-    if settings.DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
-        pro_features_list = ArrayField(
-            models.CharField(max_length=50),
-            default=list,
-            blank=True,
-            help_text='Lista de features Pro activas para este usuario.'
-        )
-    else:
-        pro_features_list = models.JSONField(
-            default=list,
-            blank=True,
-            help_text='Lista de features Pro activas para este usuario.'
-        )
+    pro_trial_until = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=_('Date until which the user has an active Pro trial.')
+    )
+    pro_features_list = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=_('List of active Pro features for this user.')
+    )
 
     groups = models.ManyToManyField(
         Group,
@@ -84,8 +88,26 @@ class User(AbstractUser):
     
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
 
+    class Meta:
+        verbose_name = _('user')
+        verbose_name_plural = _('users')
+
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
+
+    def has_pro_access(self):
+        """Check if user has access to Pro features"""
+        if self.pro_features:
+            return True
+        if self.pro_trial_until and self.pro_trial_until > timezone.now():
+            return True
+        return False
+
+    def has_pro_feature(self, feature):
+        """Check if user has access to a specific Pro feature"""
+        if self.has_pro_access():
+            return True
+        return feature in self.pro_features_list
 
 class PendingInvitation(models.Model):
     username = models.CharField(max_length=150)

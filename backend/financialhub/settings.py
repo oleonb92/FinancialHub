@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from datetime import timedelta
 from pathlib import Path
 from core.logging import setup_logging
+import sys
 
 # Cargar variables de entorno desde el root
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env'))
@@ -42,6 +43,7 @@ INSTALLED_APPS = [
     'incentives',
     'api',
     'core',
+    'django_celery_results',
 ]
 
 MIDDLEWARE = [
@@ -78,16 +80,24 @@ WSGI_APPLICATION = 'financialhub.wsgi.application'
 ASGI_APPLICATION = 'financialhub.asgi.application'
 
 # Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'financialhub'),
-        'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+if 'test' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',  # Usar base de datos en memoria para tests
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'financialhub'),
+            'USER': os.getenv('DB_USER', 'postgres'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -203,6 +213,11 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutos
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
 
 # Email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -218,6 +233,27 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 AI_MODEL = os.getenv('AI_MODEL', 'gpt-4')
 AI_TEMPERATURE = float(os.getenv('AI_TEMPERATURE', 0.7))
 AI_MAX_TOKENS = int(os.getenv('AI_MAX_TOKENS', 2000))
+
+# AI Resource Thresholds
+AI_CPU_THRESHOLD = float(os.getenv('AI_CPU_THRESHOLD', 80.0))
+AI_MEMORY_THRESHOLD = float(os.getenv('AI_MEMORY_THRESHOLD', 80.0))
+AI_DISK_THRESHOLD = float(os.getenv('AI_DISK_THRESHOLD', 90.0))
+AI_MIN_MEMORY_GB = float(os.getenv('AI_MIN_MEMORY_GB', 1.0))
+AI_MIN_DISK_GB = float(os.getenv('AI_MIN_DISK_GB', 5.0))
+
+# AI Model Cache Settings
+AI_MODEL_CACHE_TIMEOUT = int(os.getenv('AI_MODEL_CACHE_TIMEOUT', 3600))
+AI_MODEL_CACHE_PREFIX = os.getenv('AI_MODEL_CACHE_PREFIX', 'ai_model_')
+
+# AI Model Versioning Settings
+AI_MODEL_VERSION_DIR = os.path.join(BASE_DIR, 'ai', 'models', 'versions')
+AI_MAX_MODEL_VERSIONS = int(os.getenv('AI_MAX_MODEL_VERSIONS', 5))
+
+# Asegurar que el directorio de versiones existe
+os.makedirs(AI_MODEL_VERSION_DIR, exist_ok=True)
+
+# Asegurar que el directorio de logs existe
+os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
 
 # Stripe settings
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
@@ -256,7 +292,16 @@ CACHES = {
         'LOCATION': os.getenv('REDIS_URL', 'redis://localhost:6379/1'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
+            'PARSER_CLASS': 'redis.connection.HiredisParser',
+            'CONNECTION_POOL_CLASS': 'redis.BlockingConnectionPool',
+            'CONNECTION_POOL_CLASS_KWARGS': {
+                'max_connections': 50,
+                'timeout': 20,
+            },
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+            'IGNORE_EXCEPTIONS': True,
+        },
+        'KEY_PREFIX': 'financialhub'
     }
 }
 
@@ -332,8 +377,9 @@ LOGGING = {
     },
 }
 
-# Initialize logging
-setup_logging()
+# Initialize logging SOLO si no estamos en modo test
+if 'test_settings' not in os.environ.get('DJANGO_SETTINGS_MODULE', '') and not any('pytest' in arg for arg in sys.argv):
+    setup_logging()
 
 # Development-specific settings
 if DEBUG:
@@ -344,3 +390,6 @@ if DEBUG:
 
 # Modelo de usuario personalizado
 AUTH_USER_MODEL = 'accounts.User'
+
+# ML Models directory for AI tests and services
+ML_MODELS_DIR = os.path.join(BASE_DIR, 'ml_models')
