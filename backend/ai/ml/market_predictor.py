@@ -20,7 +20,12 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 from django.utils import timezone
-import yfinance as yf
+try:
+    import yfinance as yf
+    YFINANCE_AVAILABLE = True
+except ImportError:
+    YFINANCE_AVAILABLE = False
+    yf = None
 import requests
 import json
 from textblob import TextBlob
@@ -87,6 +92,10 @@ class MarketPredictor:
         Returns:
             DataFrame: Datos de mercado
         """
+        if not YFINANCE_AVAILABLE:
+            logger.warning("yfinance not available. Market data fetching disabled.")
+            return pd.DataFrame()
+            
         try:
             ticker = yf.Ticker(symbol)
             data = ticker.history(period=period)
