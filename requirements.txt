@@ -120,3 +120,6 @@ PyYAML==6.0.2
 SQLAlchemy==2.0.41
 eralchemy2==1.4.1
 python-dotenv==1.0.1
+
+# Optimización
+cvxpy==1.4.4

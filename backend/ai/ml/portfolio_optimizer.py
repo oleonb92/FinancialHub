@@ -13,12 +13,22 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 from scipy.stats import norm
-import cvxpy as cp
+try:
+    import cvxpy as cp
+    CVXPY_AVAILABLE = True
+except ImportError:
+    CVXPY_AVAILABLE = False
+    cp = None
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 from django.utils import timezone
-import yfinance as yf
+try:
+    import yfinance as yf
+    YFINANCE_AVAILABLE = True
+except ImportError:
+    YFINANCE_AVAILABLE = False
+    yf = None
 import json
 
 logger = logging.getLogger('ai.portfolio_optimizer')
@@ -66,6 +76,10 @@ class PortfolioOptimizer:
         Returns:
             DataFrame: Datos de precios ajustados
         """
+        if not YFINANCE_AVAILABLE:
+            logger.warning("yfinance not available. Portfolio data fetching disabled.")
+            return pd.DataFrame()
+            
         try:
             data = {}
             for symbol in symbols:
