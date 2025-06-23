@@ -1,0 +1,4 @@
+Requirement already satisfied: pytest in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (8.3.5)
+Requirement already satisfied: iniconfig in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (from pytest) (2.1.0)
+Requirement already satisfied: packaging in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (from pytest) (23.2)
+Requirement already satisfied: pluggy<2,>=1.5 in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (from pytest) (1.6.0)

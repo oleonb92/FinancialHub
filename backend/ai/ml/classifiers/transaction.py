@@ -60,12 +60,12 @@ class TransactionClassifier(BaseMLModel):
         self.categories = None
         self.is_fitted = False
     
-    def _prepare_features(self, transactions: Union[Transaction, List[Transaction]]) -> pd.DataFrame:
+    def _prepare_features(self, transactions: Union[Transaction, List[Transaction], List[Dict]]) -> pd.DataFrame:
         """
         Prepare features for training or prediction.
         
         Args:
-            transactions: List of Transaction objects or single Transaction
+            transactions: List of Transaction objects, single Transaction, or list of dictionaries
             
         Returns:
             pd.DataFrame: Prepared features
@@ -77,23 +77,35 @@ class TransactionClassifier(BaseMLModel):
             transactions = [transactions]
             
         try:
-            features = pd.DataFrame({
-                'description': [t.description for t in transactions],
-                'amount': [float(t.amount) for t in transactions],
-                'day_of_week': [t.date.weekday() for t in transactions],
-                'day_of_month': [t.date.day for t in transactions],
-                'month': [t.date.month for t in transactions]
-            })
+            # Check if we're dealing with dictionaries or Transaction objects
+            if transactions and isinstance(transactions[0], dict):
+                # Handle dictionary format
+                features = pd.DataFrame({
+                    'description': [t.get('description', '') for t in transactions],
+                    'amount': [float(t.get('amount', 0)) for t in transactions],
+                    'day_of_week': [t.get('date').weekday() if hasattr(t.get('date'), 'weekday') else 0 for t in transactions],
+                    'day_of_month': [t.get('date').day if hasattr(t.get('date'), 'day') else 1 for t in transactions],
+                    'month': [t.get('date').month if hasattr(t.get('date'), 'month') else 1 for t in transactions]
+                })
+            else:
+                # Handle Transaction objects
+                features = pd.DataFrame({
+                    'description': [t.description for t in transactions],
+                    'amount': [float(t.amount) for t in transactions],
+                    'day_of_week': [t.date.weekday() for t in transactions],
+                    'day_of_month': [t.date.day for t in transactions],
+                    'month': [t.date.month for t in transactions]
+                })
             return features
         except (ValueError, AttributeError) as e:
             raise ValueError(f"Invalid transaction data: {str(e)}")
     
-    def train(self, transactions: List[Transaction]) -> None:
+    def train(self, transactions: Union[List[Transaction], List[Dict]]) -> None:
         """
         Train the transaction classifier.
         
         Args:
-            transactions: List of Transaction objects to train on
+            transactions: List of Transaction objects or dictionaries to train on
             
         Raises:
             ValueError: If no transactions provided or data is invalid
@@ -105,14 +117,20 @@ class TransactionClassifier(BaseMLModel):
                 
             # Prepare features and labels
             X = self._prepare_features(transactions)
-            y = np.array([t.category.id for t in transactions])
+            
+            # Extract labels based on data type
+            if transactions and isinstance(transactions[0], dict):
+                y = np.array([t.get('category_id') for t in transactions if t.get('category_id')])
+                # Store category mapping from dictionary data
+                self.categories = {t.get('category_id'): t.get('category_name', '') for t in transactions if t.get('category_id')}
+            else:
+                y = np.array([t.category.id for t in transactions])
+                # Store category mapping from Transaction objects
+                self.categories = {t.category.id: t.category.name for t in transactions}
             
             # Verify data consistency
             if len(X) != len(y):
                 raise ValueError(f"Inconsistent data: {len(X)} features vs {len(y)} labels")
-            
-            # Store category mapping
-            self.categories = {t.category.id: t.category.name for t in transactions}
             
             # Train the pipeline
             self.pipeline.fit(X, y)

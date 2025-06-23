@@ -1,0 +1,2 @@
+Requirement already satisfied: redis in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (5.0.1)
+Requirement already satisfied: async-timeout>=4.0.2 in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (from redis) (5.0.1)

@@ -1,0 +1,9 @@
+Collecting pickle5
+  Downloading pickle5-0.0.11.tar.gz (132 kB)
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Building wheels for collected packages: pickle5
+  Building wheel for pickle5 (setup.py): started
+  Building wheel for pickle5 (setup.py): finished with status 'error'
+  Running setup.py clean for pickle5
+Failed to build pickle5

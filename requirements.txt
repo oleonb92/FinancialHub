@@ -1,0 +1,119 @@
+# Django y REST Framework
+Django==5.2.3
+djangorestframework==3.15.2
+djangorestframework-simplejwt==5.5.0
+django-cors-headers==4.7.0
+django-environ==0.12.0
+django-extensions==4.1
+django-filter==25.1
+django-prometheus==2.3.1
+django-redis==5.4.0
+django_celery_results==2.6.0
+django-elasticsearch-dsl==8.0
+
+# WebSockets y comunicación en tiempo real
+channels==4.2.2
+channels-redis==4.2.0
+
+# Celery y Redis
+celery==5.5.2
+redis==5.0.1
+kombu==5.5.3
+billiard==4.2.1
+
+# Bases de datos
+psycopg2-binary==2.9.10
+PyMySQL==1.1.0
+mysql-connector-python==8.3.0
+
+# Elasticsearch
+elasticsearch==8.18.1
+elasticsearch-dsl==8.18.0
+elastic-transport==8.17.1
+
+# Machine Learning y Data Science
+scikit-learn==1.6.1
+pandas==2.2.3
+numpy==1.26.4
+scipy==1.15.2
+joblib==1.4.2
+matplotlib==3.8.4
+plotly==6.0.1
+
+# IA y OpenAI
+openai==1.82.1
+anthropic==0.25.0
+
+# Deep Learning
+torch==2.4.0
+torchvision==0.19.0
+transformers==4.45.0
+
+# Optimización de hiperparámetros
+optuna==4.0.0
+hyperopt==0.2.7
+ray[tune]==2.12.0
+
+# Experimentación y tracking
+mlflow==2.12.0
+wandb==0.18.0
+tensorboard==2.17.0
+
+# NLP
+nltk==3.8.1
+spacy==3.8.0
+textblob==0.17.1
+gensim==4.3.2
+sentence-transformers==3.0.0
+
+# Análisis estadístico
+statsmodels==0.14.4
+seaborn==0.13.2
+
+# Visualización
+bokeh==3.4.0
+
+# Pagos
+stripe==12.2.0
+
+# Desarrollo y testing
+pytest==8.3.5
+pytest-django==4.11.1
+coverage==7.8.2
+black==24.2.0
+flake8==7.0.0
+isort==5.13.2
+
+# Monitoreo y Logging
+sentry-sdk==2.29.1
+python-json-logger==2.0.4
+prometheus-client==0.13.1
+
+# Security
+cryptography==41.0.7
+PyJWT==2.9.0
+
+# Documentación
+drf-yasg==1.21.7
+
+# Sistema
+psutil>=5.9.0
+gunicorn==21.2.0
+
+# Desarrollo
+jupyter==1.0.0
+ipython==8.9.0
+
+# Utilidades
+python-dateutil==2.9.0.post0
+pytz==2024.1
+tenacity==8.2.3
+requests==2.32.3
+urllib3==2.2.1
+certifi==2024.12.14
+Pillow==11.2.1
+openpyxl==3.1.5
+PyYAML==6.0.2
+SQLAlchemy==2.0.41
+eralchemy2==1.4.1
+python-dotenv==1.0.1

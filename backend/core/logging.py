@@ -3,10 +3,14 @@ import os
 from logging.handlers import RotatingFileHandler
 from django.conf import settings
 
-def setup_logging():
+def setup_logging(base_dir=None):
     """Configure logging for the application"""
+    # Use provided base_dir or fall back to settings.BASE_DIR
+    if base_dir is None:
+        base_dir = settings.BASE_DIR
+    
     # Create logs directory if it doesn't exist
-    log_dir = os.path.join(settings.BASE_DIR, 'logs')
+    log_dir = os.path.join(base_dir, 'logs')
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 

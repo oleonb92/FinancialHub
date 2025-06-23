@@ -1,0 +1,6 @@
+Requirement already satisfied: pytest-cov in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (6.2.1)
+Requirement already satisfied: pytest>=6.2.5 in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (from pytest-cov) (8.3.5)
+Requirement already satisfied: coverage>=7.5 in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (from coverage[toml]>=7.5->pytest-cov) (7.8.2)
+Requirement already satisfied: pluggy>=1.2 in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (from pytest-cov) (1.6.0)
+Requirement already satisfied: iniconfig in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (from pytest>=6.2.5->pytest-cov) (2.1.0)
+Requirement already satisfied: packaging in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (from pytest>=6.2.5->pytest-cov) (23.2)

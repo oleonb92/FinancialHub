@@ -8,6 +8,7 @@ Este módulo proporciona funcionalidades para:
 """
 import psutil
 import time
+import platform
 from datetime import datetime
 from django.core.cache import cache
 import logging
@@ -29,6 +30,7 @@ class ResourceMonitor:
         self.metrics_queue = Queue()
         self.is_monitoring = False
         self.monitor_thread = None
+        self.system = platform.system()
         
     def collect_metrics(self) -> Dict[str, Any]:
         """
@@ -38,31 +40,99 @@ class ResourceMonitor:
             Dict: Métricas recolectadas
         """
         try:
+            # Métricas de CPU
+            cpu_metrics = {
+                'percent': psutil.cpu_percent(interval=1),
+                'count': psutil.cpu_count()
+            }
+            
+            # Intentar obtener frecuencia de CPU (compatible con macOS)
+            try:
+                if self.system == 'Darwin':  # macOS
+                    # En macOS, usar un método alternativo o valores por defecto
+                    cpu_metrics['freq'] = {
+                        'current': None,
+                        'min': None,
+                        'max': None
+                    }
+                    # Intentar obtener información de CPU usando comandos del sistema
+                    try:
+                        import subprocess
+                        result = subprocess.run(['sysctl', '-n', 'hw.cpufrequency'], 
+                                              capture_output=True, text=True, timeout=5)
+                        if result.returncode == 0:
+                            freq_hz = int(result.stdout.strip())
+                            cpu_metrics['freq']['current'] = freq_hz / 1000000  # Convertir a MHz
+                    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, ValueError):
+                        pass
+                else:
+                    # Para otros sistemas, usar psutil
+                    try:
+                        cpu_freq = psutil.cpu_freq()
+                        if cpu_freq:
+                            cpu_metrics['freq'] = {
+                                'current': cpu_freq.current,
+                                'min': cpu_freq.min,
+                                'max': cpu_freq.max
+                            }
+                        else:
+                            cpu_metrics['freq'] = None
+                    except Exception:
+                        cpu_metrics['freq'] = None
+            except Exception as e:
+                logger.debug(f"No se pudo obtener frecuencia de CPU: {e}")
+                cpu_metrics['freq'] = None
+            
+            # Métricas de memoria
+            memory = psutil.virtual_memory()
+            memory_metrics = {
+                'total': memory.total,
+                'available': memory.available,
+                'percent': memory.percent,
+                'used': memory.used,
+                'free': memory.free
+            }
+            
+            # Métricas de disco
+            try:
+                disk = psutil.disk_usage('/')
+                disk_metrics = {
+                    'total': disk.total,
+                    'used': disk.used,
+                    'free': disk.free,
+                    'percent': disk.percent
+                }
+            except Exception:
+                # Fallback para sistemas donde '/' no está disponible
+                disk_metrics = {
+                    'total': 0,
+                    'used': 0,
+                    'free': 0,
+                    'percent': 0
+                }
+            
+            # Métricas de red
+            try:
+                net_io = psutil.net_io_counters()
+                network_metrics = {
+                    'bytes_sent': net_io.bytes_sent,
+                    'bytes_recv': net_io.bytes_recv,
+                    'packets_sent': net_io.packets_sent,
+                    'packets_recv': net_io.packets_recv
+                }
+            except Exception:
+                network_metrics = {
+                    'bytes_sent': 0,
+                    'bytes_recv': 0,
+                    'packets_sent': 0,
+                    'packets_recv': 0
+                }
+            
             metrics = {
-                'cpu': {
-                    'percent': psutil.cpu_percent(interval=1),
-                    'count': psutil.cpu_count(),
-                    'freq': psutil.cpu_freq()._asdict() if psutil.cpu_freq() else None
-                },
-                'memory': {
-                    'total': psutil.virtual_memory().total,
-                    'available': psutil.virtual_memory().available,
-                    'percent': psutil.virtual_memory().percent,
-                    'used': psutil.virtual_memory().used,
-                    'free': psutil.virtual_memory().free
-                },
-                'disk': {
-                    'total': psutil.disk_usage('/').total,
-                    'used': psutil.disk_usage('/').used,
-                    'free': psutil.disk_usage('/').free,
-                    'percent': psutil.disk_usage('/').percent
-                },
-                'network': {
-                    'bytes_sent': psutil.net_io_counters().bytes_sent,
-                    'bytes_recv': psutil.net_io_counters().bytes_recv,
-                    'packets_sent': psutil.net_io_counters().packets_sent,
-                    'packets_recv': psutil.net_io_counters().packets_recv
-                },
+                'cpu': cpu_metrics,
+                'memory': memory_metrics,
+                'disk': disk_metrics,
+                'network': network_metrics,
                 'timestamp': datetime.now().isoformat()
             }
             
@@ -198,7 +268,25 @@ class ResourceMonitor:
         Returns:
             Dict: Últimas métricas
         """
-        return cache.get('system_metrics_latest', {})
+        try:
+            latest_metrics = cache.get('system_metrics_latest')
+            if latest_metrics is None:
+                # Si no hay métricas en caché, recolectar nuevas
+                return self.collect_metrics()
+            return latest_metrics
+        except Exception as e:
+            logger.error(f"Error obteniendo últimas métricas: {str(e)}")
+            return self.collect_metrics()
+    
+    def get_current_metrics(self) -> Dict[str, Any]:
+        """
+        Obtiene las métricas actuales del sistema.
+        Alias para get_latest_metrics para compatibilidad.
+        
+        Returns:
+            Dict: Métricas actuales
+        """
+        return self.get_latest_metrics()
         
     def export_metrics(self, format: str = 'json') -> str:
         """

@@ -32,12 +32,12 @@ class BehaviorAnalyzer(BaseMLModel):
         self.feature_names = ['amount', 'day_of_week', 'hour', 'category_id', 'merchant_id']
         self.is_fitted = False
     
-    def _prepare_features(self, transactions: List[Transaction]) -> pd.DataFrame:
+    def _prepare_features(self, transactions: Union[List[Transaction], List[Dict]]) -> pd.DataFrame:
         """
         Prepare features for behavior analysis.
         
         Args:
-            transactions: List of Transaction objects
+            transactions: List of Transaction objects or dictionaries
             
         Returns:
             pd.DataFrame: Prepared features
@@ -49,22 +49,34 @@ class BehaviorAnalyzer(BaseMLModel):
             return pd.DataFrame(columns=self.feature_names)
         
         try:
-            return pd.DataFrame({
-                'amount': [float(t.amount) for t in transactions],
-                'day_of_week': [t.date.weekday() for t in transactions],
-                'hour': [t.date.hour for t in transactions],
-                'category_id': [t.category.id for t in transactions],
-                'merchant_id': [hash(getattr(t, 'merchant', None)) % 1000 if getattr(t, 'merchant', None) else 0 for t in transactions]
-            })
+            # Check if we're dealing with dictionaries or Transaction objects
+            if transactions and isinstance(transactions[0], dict):
+                # Handle dictionary format
+                return pd.DataFrame({
+                    'amount': [float(t.get('amount', 0)) for t in transactions],
+                    'day_of_week': [t.get('date').weekday() if hasattr(t.get('date'), 'weekday') else 0 for t in transactions],
+                    'hour': [t.get('date').hour if hasattr(t.get('date'), 'hour') else 0 for t in transactions],
+                    'category_id': [t.get('category_id', 0) for t in transactions],
+                    'merchant_id': [hash(t.get('merchant', '')) % 1000 for t in transactions]
+                })
+            else:
+                # Handle Transaction objects
+                return pd.DataFrame({
+                    'amount': [float(t.amount) for t in transactions],
+                    'day_of_week': [t.date.weekday() for t in transactions],
+                    'hour': [t.date.hour for t in transactions],
+                    'category_id': [t.category.id for t in transactions],
+                    'merchant_id': [hash(getattr(t, 'merchant', None)) % 1000 if getattr(t, 'merchant', None) else 0 for t in transactions]
+                })
         except (ValueError, AttributeError) as e:
             raise ValueError(f"Invalid transaction data: {str(e)}")
     
-    def train(self, transactions: List[Transaction]) -> None:
+    def train(self, transactions: Union[List[Transaction], List[Dict]]) -> None:
         """
         Train the behavior analyzer.
         
         Args:
-            transactions: List of Transaction objects to train on
+            transactions: List of Transaction objects or dictionaries to train on
             
         Raises:
             ValueError: If no transactions provided or data is invalid
@@ -86,6 +98,7 @@ class BehaviorAnalyzer(BaseMLModel):
             # Fit clustering model
             self.clustering_model.fit(scaled_features)
             self.is_fitted = True
+            self.is_trained = True  # Set the base class flag
             
             # Save the trained model
             self.save()
@@ -378,13 +391,46 @@ class BehaviorAnalyzer(BaseMLModel):
         })
         return info
 
-    def load(self):
+    def save(self):
+        """Guarda el modelo entrenado."""
         try:
-            # ... existing code ...
-            self.is_fitted = True
-        except Exception:
-            self.is_fitted = False
-            # ... existing code ...
+            if not self.is_trained:
+                raise RuntimeError("Cannot save untrained model")
+                
+            # Guardar el modelo completo (scaler + clustering_model)
+            model_data = {
+                'scaler': self.scaler,
+                'clustering_model': self.clustering_model,
+                'feature_names': self.feature_names,
+                'is_fitted': self.is_fitted
+            }
+            
+            self.model_path.parent.mkdir(parents=True, exist_ok=True)
+            joblib.dump(model_data, self.model_path)
+            self.logger.info(f"Model saved to {self.model_path}")
+            
+        except Exception as e:
+            self.logger.error(f"Error saving model: {str(e)}")
+            raise RuntimeError(f"Failed to save model: {str(e)}")
+    
+    def load(self):
+        """Carga el modelo entrenado."""
+        try:
+            if not self.model_path.exists():
+                raise FileNotFoundError(f"No saved model found at {self.model_path}")
+                
+            model_data = joblib.load(self.model_path)
+            self.scaler = model_data['scaler']
+            self.clustering_model = model_data['clustering_model']
+            self.feature_names = model_data['feature_names']
+            self.is_fitted = model_data['is_fitted']
+            self.is_trained = True
+            
+            self.logger.info(f"Model loaded from {self.model_path}")
+            
+        except Exception as e:
+            self.logger.error(f"Error loading model: {str(e)}")
+            raise RuntimeError(f"Failed to load model: {str(e)}")
 
     def reset(self):
         # ... existing code ...

@@ -201,8 +201,22 @@ class ModelVersioning:
                 del registry[model_name][version]
                 self._save_version_registry(registry)
                 
-            logger.info(f"Versión {version} del modelo {model_name} eliminada exitosamente")
+            logger.info(f"Versión {version} del modelo {model_name} eliminada")
             
         except Exception as e:
-            logger.error(f"Error eliminando versión del modelo {model_name}: {str(e)}")
-            raise 
+            logger.error(f"Error eliminando versión {version} del modelo {model_name}: {str(e)}")
+            raise
+    
+    def get_all_models(self) -> list:
+        """
+        Obtiene la lista de todos los modelos disponibles.
+        
+        Returns:
+            list: Lista de nombres de modelos
+        """
+        try:
+            registry = self._load_version_registry()
+            return list(registry.keys())
+        except Exception as e:
+            logger.error(f"Error obteniendo lista de modelos: {str(e)}")
+            return [] 

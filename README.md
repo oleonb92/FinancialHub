@@ -1,395 +1,407 @@
-# FinancialHub
+# FinancialHub - Sistema de Gestión Financiera
 
-**FinancialHub** es un sistema integral de gestión financiera personal y empresarial, robusto, seguro y preparado para producción, con todos los servicios críticos orquestados en Docker.
+Un sistema completo de gestión financiera personal y empresarial con capacidades de IA y análisis avanzado.
 
----
+## 🚀 Características Principales
 
-## **Características principales**
+- **Gestión de transacciones** con categorización automática
+- **Análisis de gastos** con predicciones de IA
+- **Sistema de presupuestos** inteligente
+- **Búsqueda avanzada** con Elasticsearch
+- **Tareas asíncronas** con Celery + Redis
+- **API REST** completa con Django REST Framework
+- **Frontend React** moderno y responsivo con tecnologías avanzadas
+- **Sistema de pagos** con Stripe
+- **Sistema de usuarios** y organizaciones
+- **Auditoría completa** de cambios
+- **Notificaciones** en tiempo real
+- **Monitoreo avanzado** de recursos del sistema
 
-- Gestión de usuarios, households y empresas
-- Cuentas y transacciones
-- Etiquetas y categorías
-- Tareas asíncronas con Celery + RabbitMQ
-- Cache y sesiones con Redis
-- Búsqueda avanzada con Elasticsearch
-- Monitoreo con Prometheus y Grafana
-- Logs y errores con Sentry
-- Backups automáticos de base de datos y media
-- Documentación Swagger/OpenAPI
-- CI/CD con GitHub Actions
-- Seguridad y buenas prácticas (CORS, CSRF, HTTPS, .env centralizado)
-- Listo para escalar y servir estáticos/media con Nginx
+## 🏗️ Arquitectura del Sistema
 
----
+### Backend (Django) - Sistema Principal
+El backend Django es el núcleo del sistema, proporcionando todas las funcionalidades principales:
 
-## **Estructura del proyecto**
+#### **Framework y Tecnologías**
+- **Framework**: Django 5.1.9 con Django REST Framework
+- **Autenticación**: JWT (JSON Web Tokens)
+- **Base de datos**: PostgreSQL/MySQL con ORM de Django
+- **Búsqueda**: Elasticsearch para búsqueda avanzada
+- **Cache**: Redis para caché y sesiones
+- **Tareas asíncronas**: Celery + Redis para procesamiento en background
+- **API**: REST API completa con documentación automática
+
+#### **Módulos Principales**
+1. **accounts/**: Gestión de usuarios, autenticación y permisos
+2. **transactions/**: Gestión completa de transacciones financieras
+3. **ai/**: Sistema de Machine Learning y IA
+4. **organizations/**: Gestión de organizaciones y multi-tenancy
+5. **goals/**: Sistema de metas financieras
+6. **budgets/**: Gestión de presupuestos
+7. **payments/**: Integración con Stripe para pagos
+8. **notifications/**: Sistema de notificaciones
+9. **audit/**: Auditoría completa de cambios
+
+#### **Sistema de IA (Módulo ai/)**
+El módulo de IA incluye:
+- **Clasificadores**: Categorización automática de transacciones
+- **Predictores**: Predicción de gastos futuros
+- **Analizadores**: Análisis de comportamiento financiero
+- **Detectores**: Detección de anomalías
+- **Optimizadores**: Optimización de presupuestos
+- **NLP**: Procesamiento de lenguaje natural para descripciones
+
+### Frontend (React) - Interfaz Web Avanzada
+- **Framework**: React 18 con hooks modernos
+- **Estilos**: Tailwind CSS para diseño responsivo
+- **Estado**: Context API para gestión de estado global
+- **HTTP**: Axios para comunicación con la API
+- **Componentes**: Sistema modular de componentes reutilizables
+- **Visualización**: Chart.js, D3.js, Recharts para gráficos avanzados
+- **UI/UX**: Material-UI, Ant Design para componentes modernos
+- **Tiempo Real**: WebSockets para actualizaciones en vivo
+- **Estado Avanzado**: React Query para caché y sincronización
+
+## 🔄 Cómo Funciona el Sistema
+
+### 1. **Flujo de Datos Principal**
 
 ```
-/backend         # Código Django
-/frontend        # Frontend (React, etc.)
-/docker
-  ├── nginx/     # Configuración Nginx
-  ├── certbot/   # Let's Encrypt (opcional)
-docker-compose.yml
-docker-compose.prod.yml
-.env             # Variables de entorno (dev)
-.env.prod        # Variables de entorno (prod)
+Usuario → Frontend React → API Django → Base de Datos
+    ↓
+Sistema IA → Procesamiento → Predicciones
+    ↓
+Celery Tasks → Procesamiento Asíncrono → Notificaciones
 ```
 
----
+### 2. **Procesamiento de Transacciones**
 
-## **Servicios principales (Docker Compose Prod)**
+1. **Entrada de Datos**: Usuario ingresa transacción vía React
+2. **Validación**: Django valida datos y permisos
+3. **Clasificación IA**: Sistema de ML categoriza automáticamente
+4. **Almacenamiento**: Transacción se guarda en PostgreSQL
+5. **Indexación**: Elasticsearch indexa para búsqueda
+6. **Análisis**: Celery ejecuta análisis en background
+7. **Notificación**: Usuario recibe confirmación
+8. **Actualización UI**: React actualiza interfaz en tiempo real
 
-- **web**: Django + Gunicorn
-- **nginx**: Servidor web/proxy, sirve static/media y API
-- **db**: PostgreSQL
-- **redis**: Cache y backend Celery
-- **rabbitmq**: Broker de tareas Celery
-- **elasticsearch**: Búsqueda avanzada
-- **certbot**: Certificados SSL (opcional)
-- **pgbackups**: Backups automáticos de PostgreSQL
-- **mediabackups**: Backups automáticos de archivos media
-- **prometheus/grafana**: Monitoreo y dashboards
+### 3. **Sistema de IA en Acción**
 
----
+#### **Entrenamiento de Modelos**
+```python
+# Los modelos se entrenan automáticamente con:
+- Datos históricos de transacciones
+- Patrones de comportamiento del usuario
+- Categorías y etiquetas existentes
+- Métricas de rendimiento continuas
+```
 
-## **Comandos clave para desarrollo**
+#### **Predicciones en Tiempo Real**
+```python
+# El sistema predice:
+- Categoría de nueva transacción
+- Gastos futuros basados en patrones
+- Anomalías en transacciones
+- Recomendaciones de presupuesto
+```
 
+### 4. **Procesamiento Asíncrono (Celery)**
+
+#### **Tareas Automáticas**
+- **Entrenamiento de modelos**: Cada 24 horas
+- **Análisis de comportamiento**: Cada 6 horas
+- **Monitoreo de recursos**: Cada hora
+- **Limpieza de datos**: Diariamente
+- **Generación de reportes**: Semanalmente
+
+#### **Colas de Procesamiento**
+- **training**: Entrenamiento de modelos de IA
+- **evaluation**: Evaluación de rendimiento
+- **monitoring**: Monitoreo del sistema
+- **maintenance**: Mantenimiento automático
+
+## 📦 Instalación y Configuración
+
+### Prerrequisitos
+- Python 3.9+
+- Node.js 16+
+- Redis
+- PostgreSQL/MySQL
+- Elasticsearch
+
+### Instalación Completa
+
+#### **1. Backend Django**
 ```bash
-# Instalar dependencias backend
 cd backend
-pip install -r requirements.txt
-
-# Migrar base de datos
+python -m venv venv
+source venv/bin/activate  # En Windows: venv\Scripts\activate
+pip install -r ../requirements.txt
 python manage.py migrate
-
-# Crear superusuario
 python manage.py createsuperuser
+```
 
-# Levantar servidor de desarrollo
-python manage.py runserver
+#### **2. Frontend React**
+```bash
+cd frontend
+npm install
+npm start
+```
 
-# Ejecutar tests
-python manage.py test
+#### **3. Servicios de Soporte**
+```bash
+# Redis
+redis-server
 
-# Levantar servicios externos (dev)
-docker compose -f docker-compose.celery.yml up -d
-docker compose -f docker-compose.monitoring.yml up -d
+# Elasticsearch
+elasticsearch
 
-# Ejecutar Celery worker
+# Celery Worker
+cd backend
 celery -A financialhub worker -l info
 
-# Ejecutar Flower (monitor Celery)
-celery -A financialhub flower --port=5555
+# Celery Beat (scheduler)
+cd backend
+celery -A financialhub beat -l info
 ```
 
----
+### Configuración de Variables de Entorno
+Crea un archivo `.env` en el directorio `backend`:
 
-## **Comandos clave para producción**
-
-```bash
-# Build y levantar todo en modo producción
-docker compose -f docker-compose.prod.yml up -d --build
-
-# Ver logs de un servicio
-docker compose -f docker-compose.prod.yml logs -f web
-
-# Ejecutar migraciones en el contenedor web
-docker compose -f docker-compose.prod.yml exec web python manage.py migrate
-
-# Ejecutar collectstatic en el contenedor web
-docker compose -f docker-compose.prod.yml exec web python manage.py collectstatic --noinput
-
-# Restaurar un backup de base de datos
-# (Copia el archivo dump al host y ejecuta)
-docker compose -f docker-compose.prod.yml run --rm -v $(pwd)/restore:/restore postgres:15-alpine \
-  pg_restore -U $DB_USER -d $DB_NAME /restore/backup-YYYY-MM-DD/backup-HH-MM-SS.dump
-
-# Restaurar un backup de media
-tar xzf media-YYYY-MM-DD/media-HH-MM-SS.tar.gz -C /ruta/a/media
-```
-
----
-
-## **Comandos de monitoreo y observabilidad**
-
-```bash
-# Acceder a Prometheus (por defecto en http://localhost:9090)
-# Acceder a Grafana (por defecto en http://localhost:3001, user: admin, pass: admin)
-# Acceder a Flower (por defecto en http://localhost:5555)
-```
-
----
-
-## **Calidad de Código y Pre-commit Hooks**
-
-El proyecto usa pre-commit hooks para mantener la calidad del código. Para instalarlos:
-
-```bash
-# Instalar pre-commit
-pip install pre-commit
-
-# Instalar los hooks
-pre-commit install
-
-# Ejecutar manualmente en todo el código
-pre-commit run --all-files
-```
-
-Los hooks incluyen:
-- **Black**: Formateo automático de Python
-- **isort**: Ordenamiento de imports
-- **Flake8**: Linting y análisis estático
-- **Bandit**: Análisis de seguridad
-- **Otros**: Verificación de YAML, JSON, conflictos de merge, etc.
-
-## **Documentación de la API**
-
-La API está documentada usando Swagger/OpenAPI. Puedes acceder a la documentación en:
-
-- **Swagger UI**: `http://localhost:8000/swagger/`
-- **ReDoc**: `http://localhost:8000/redoc/`
-- **JSON Schema**: `http://localhost:8000/swagger.json`
-
-La documentación incluye:
-- Todos los endpoints disponibles
-- Esquemas de request/response
-- Autenticación y autorización
-- Ejemplos de uso
-- Interfaz interactiva para probar endpoints
-
----
-
-## **Backups automáticos**
-
-- **Base de datos**: dumps diarios en el volumen `pgbackups`
-- **Media**: archivos tar.gz diarios en el volumen `mediabackups`
-- Los backups se organizan por fecha y hora.
-
----
-
-## **Buenas prácticas y seguridad**
-
-- Usa `.env` para desarrollo y `.env.prod` para producción (no los subas al repo).
-- Cambia todas las contraseñas y claves por valores seguros en producción.
-- Usa HTTPS y configura Nginx con Let's Encrypt cuando tengas dominio.
-- Los archivos estáticos y media se sirven por Nginx, no por Django.
-- Todos los servicios críticos están orquestados y aislados en Docker.
-- Pre-commit hooks recomendados (`black`, `isort`, `flake8`, `bandit`).
-
----
-
-## **CI/CD y calidad**
-
-- Linting, formateo y tests automáticos con GitHub Actions.
-- Pre-commit hooks para asegurar calidad antes de cada commit.
-
----
-
-## **Onboarding rápido**
-
-1. Clona el repo y copia `.env` y `.env.prod` (ajusta valores).
-2. Instala dependencias y migra la base de datos.
-3. Levanta los servicios con Docker Compose.
-4. Accede a la API, admin y frontend según corresponda.
-5. Consulta los backups y la documentación Swagger.
-6. Usa los comandos de monitoreo y Celery según necesidad.
-
----
-
-## **Notas adicionales**
-
-- Para restaurar backups, consulta la sección de comandos de producción.
-- Para escalar, puedes adaptar los servicios a Kubernetes fácilmente.
-- Si tienes dudas, revisa los archivos de configuración y este README.
-
----
-
-## 🛠️ Makefile: Comandos útiles para desarrollo y producción
-
-Para facilitar la gestión de entornos y servicios, este proyecto incluye un `Makefile` con comandos prácticos:
-
-### **Comandos disponibles**
-
-- `make dev-env` — Prepara el entorno de desarrollo (`.env.dev` → `.env`)
-- `make prod-env` — Prepara el entorno de producción (`.env.prod` → `.env`)
-- `make up` — Levanta todos los servicios con Docker Compose
-- `make down` — Detiene todos los servicios
-- `make logs` — Muestra los logs en tiempo real
-- `make bash` — Acceso bash al contenedor web
-- `make migrate` — Ejecuta migraciones de Django
-- `make createsuperuser` — Crea un superusuario de Django
-- `make test` — Ejecuta los tests
-
-### **Ejemplo de uso**
-
-```bash
-# Preparar entorno de desarrollo
-yarn dev-env
-
-# Levantar servicios
-yarn up
-
-# Ver logs
-yarn logs
-
-# Detener servicios
-yarn down
-```
-
-> **Nota:** Asegúrate de tener el archivo `.env.dev` o `.env.prod` configurado antes de levantar los servicios.
-
----
-
-## **Integración con Stripe: Pagos, Suscripciones y Webhooks**
-
-### **1. Configuración de variables de entorno**
-Asegúrate de tener en tu archivo `.env` las siguientes variables:
-
-```
-# Stripe
+```env
+DEBUG=True
+SECRET_KEY=your-secret-key
+DATABASE_URL=postgresql://user:pass@localhost:5432/financialhub
+REDIS_URL=redis://localhost:6379/0
+ELASTICSEARCH_URL=http://localhost:9200
+OPENAI_API_KEY=your-openai-key
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRICE_ID=price_...
 ```
 
-Puedes obtener estos valores desde tu [Stripe Dashboard](https://dashboard.stripe.com/test/apikeys) y en la sección de Webhooks.
+## 🚀 Uso del Sistema
 
----
-
-### **2. Endpoints disponibles**
-
-- `POST /api/payments/stripe/create-subscription/` — Crea una suscripción para una organización.
-- `POST /api/payments/stripe/cancel-subscription/` — Cancela una suscripción activa.
-- `POST /api/payments/stripe/update-subscription/` — Cambia el plan de una suscripción.
-- `GET /api/payments/stripe/subscription-status/` — Consulta el estado de la suscripción.
-- `POST /api/payments/stripe/webhook/` — Endpoint para recibir eventos de Stripe (webhooks).
-
-**Todos los endpoints requieren autenticación JWT, excepto el webhook.**
-
----
-
-### **3. Configuración de Webhooks en Stripe (Desarrollo Local)**
-
-Stripe no puede acceder a tu localhost directamente. Para pruebas locales, usa [ngrok](https://ngrok.com/):
-
-1. Instala ngrok:
-   ```bash
-   brew install --cask ngrok
-   # o descarga desde https://ngrok.com/download
-   ```
-2. Autentica ngrok:
-   ```bash
-   ngrok config add-authtoken TU_AUTHTOKEN
-   ```
-3. Inicia tu servidor Django:
-   ```bash
-   python manage.py runserver
-   ```
-4. En otra terminal, ejecuta:
-   ```bash
-   ngrok http 8000
-   ```
-5. Copia la URL pública que te da ngrok (ej: `https://abcd1234.ngrok.io`).
-6. En Stripe Dashboard → Developers → Webhooks → "Add endpoint":
-   - URL: `https://abcd1234.ngrok.io/api/payments/stripe/webhook/`
-   - Selecciona los eventos:
-     - `invoice.payment_succeeded`
-     - `customer.subscription.updated`
-     - `customer.subscription.deleted`
-   - Copia el **Signing secret** y ponlo en tu `.env` como `STRIPE_WEBHOOK_SECRET`.
-
----
-
-### **4. Pruebas de Webhooks con Stripe CLI**
-
-Stripe CLI permite simular eventos fácilmente:
-
-1. Instala Stripe CLI:
-   ```bash
-   brew install stripe/stripe-cli/stripe
-   # o descarga desde https://stripe.com/docs/stripe-cli#install
-   ```
-2. Haz login:
-   ```bash
-   stripe login
-   ```
-3. Escucha y reenvía eventos a tu backend:
-   ```bash
-   stripe listen --forward-to localhost:8000/api/payments/stripe/webhook/
-   ```
-4. Dispara eventos de prueba:
-   ```bash
-   stripe trigger invoice.payment_succeeded
-   stripe trigger customer.subscription.updated
-   stripe trigger customer.subscription.deleted
-   ```
-5. Verifica en la terminal de Django que los eventos se reciben correctamente.
-
----
-
-### **5. Ejemplo de uso de endpoints (con curl o Postman)**
-
-**Crear suscripción:**
+### Iniciar el Sistema Completo
 ```bash
-curl -X POST http://localhost:8000/api/payments/stripe/create-subscription/ \
-  -H "Authorization: Bearer TU_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"organization_id": 1, "price_id": "price_xxx"}'
+# Terminal 1: Backend Django
+cd backend
+python manage.py runserver
+
+# Terminal 2: Frontend React
+cd frontend
+npm start
+
+# Terminal 3: Celery Worker
+cd backend
+celery -A financialhub worker -l info
+
+# Terminal 4: Celery Beat
+cd backend
+celery -A financialhub beat -l info
 ```
 
-**Cancelar suscripción:**
+### Acceso a las Interfaces
+
+#### **Frontend React**
+- **URL**: http://localhost:3000
+- **Funcionalidades**: Gestión completa de transacciones, usuarios, presupuestos
+- **Características**: Interfaz moderna, responsiva, tiempo real, visualizaciones avanzadas
+
+#### **API Django**
+- **URL**: http://localhost:8000/api/
+- **Documentación**: http://localhost:8000/api/docs/
+- **Funcionalidades**: Endpoints REST para integración
+
+### Verificar Estado del Sistema
 ```bash
-curl -X POST http://localhost:8000/api/payments/stripe/cancel-subscription/ \
-  -H "Authorization: Bearer TU_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"organization_id": 1}'
+# Verificar conexión de Celery
+celery -A financialhub inspect ping
+
+# Ver tareas registradas
+celery -A financialhub inspect registered
+
+# Ver colas activas
+celery -A financialhub inspect active_queues
+
+# Verificar logs
+tail -f backend/logs/financialhub.log
 ```
 
-**Consultar estado de suscripción:**
+## 📊 Monitoreo y Mantenimiento
+
+### Monitoreo de Celery
+- **Flower**: Monitor web para Celery (puerto 5555)
+- **Comandos de inspección**: `celery -A financialhub inspect`
+- **Monitoreo automático**: Tareas de monitoreo de recursos cada hora
+
+### Monitoreo del Sistema
+- **Logs**: `backend/logs/financialhub.log`
+- **Métricas**: Prometheus endpoints
+- **Health checks**: `/health/` endpoint
+- **Monitoreo de recursos**: CPU, memoria, disco, red
+
+### Monitoreo de IA
+- **Rendimiento de modelos**: Seguimiento de métricas
+- **Drift detection**: Detección de cambios en datos
+- **Resource monitoring**: Monitoreo de recursos del sistema
+- **Alertas**: Notificaciones automáticas
+
+## 🧪 Testing y Desarrollo
+
+### Ejecutar Tests
 ```bash
-curl -X GET "http://localhost:8000/api/payments/stripe/subscription-status/?organization_id=1" \
-  -H "Authorization: Bearer TU_JWT_TOKEN"
+# Backend tests
+cd backend
+python manage.py test
+
+# Frontend tests
+cd frontend
+npm test
+
+# Coverage
+cd backend
+coverage run --source='.' manage.py test
+coverage report
 ```
 
----
+### Herramientas de Desarrollo
+```bash
+# Generar diagrama ER de la base de datos
+python tools/generate_erd.py
 
-### **6. Notas y buenas prácticas**
-- Siempre reinicia el servidor Django si cambias el `.env`.
-- Usa Stripe CLI y ngrok para pruebas locales de webhooks.
-- No subas tus claves de Stripe al repositorio.
-- En producción, usa HTTPS y configura el webhook con tu dominio real.
-- Consulta la [documentación oficial de Stripe](https://stripe.com/docs) para más detalles.
+# Insertar datos de prueba
+python tools/seed_data.py
 
----
+# Instalar dependencias avanzadas
+python scripts/install_advanced_deps.py
 
-## **Features Pro y lógica de acceso**
+# Configurar IA avanzada
+python scripts/setup_advanced_ai.py
+```
 
-### **Features Pro para contadores**
-- Panel multi-organización
-- Reportes avanzados de clientes
-- Incentivos por upgrades de clientes
-- Exportación masiva de datos
-- Herramientas de conciliación y auditoría
+## 📁 Estructura Detallada del Proyecto
 
-### **Features Pro para miembros regulares (clientes/empresas)**
-- Reportes avanzados de su propia organización
-- Integraciones bancarias
-- Soporte prioritario
-- Más miembros en la organización
-- Automatizaciones y reglas personalizadas
+```
+FinancialHub/
+├── backend/                 # Django backend (Sistema Principal)
+│   ├── financialhub/       # Configuración principal
+│   ├── accounts/          # Gestión de usuarios y autenticación
+│   ├── transactions/      # Gestión de transacciones
+│   ├── ai/               # Sistema de Machine Learning
+│   │   ├── ml/          # Modelos de ML
+│   │   │   ├── classifiers/    # Clasificadores
+│   │   │   ├── predictors/     # Predictores
+│   │   │   ├── analyzers/      # Analizadores
+│   │   │   └── optimizers/     # Optimizadores
+│   │   ├── tasks/       # Tareas Celery
+│   │   └── utils/       # Utilidades de ML
+│   ├── organizations/    # Gestión de organizaciones
+│   ├── goals/           # Metas financieras
+│   ├── budgets/         # Presupuestos
+│   ├── payments/        # Integración con Stripe
+│   ├── notifications/   # Sistema de notificaciones
+│   ├── audit/          # Auditoría de cambios
+│   └── scripts/         # Scripts de sistema
+├── frontend/             # React frontend (Interfaz Web Avanzada)
+│   ├── src/
+│   │   ├── components/   # Componentes React
+│   │   ├── pages/       # Páginas
+│   │   ├── hooks/       # Custom hooks
+│   │   ├── charts/      # Componentes de visualización
+│   │   └── utils/       # Utilidades
+│   └── public/
+├── requirements.txt    # Dependencias Python
+└── docs/               # Documentación
+```
 
-### **Lógica de acceso Pro**
-- Un usuario tiene acceso Pro si:
-  - Tiene Pro global (`pro_features=True`), o
-  - Tiene trial activo (`pro_trial_until` en el futuro), o
-  - Es miembro de una organización con plan Pro, o
-  - Tiene features Pro asignadas en `pro_features_list`, o
-  - Es contador y la organización le habilitó `pro_features_for_accountant`.
-- Al invitar a un contador a una organización Pro, si no tiene Pro ni trial, se le asigna un trial automático de 30 días.
-- Los incentivos se asignan automáticamente al contador cuando una organización hace upgrade a Pro.
+## 🔍 Funcionalidades Avanzadas
 
----
+### Búsqueda con Elasticsearch
+- Búsqueda por texto libre en transacciones
+- Filtros avanzados por fecha, categoría, monto
+- Búsqueda semántica y fuzzy matching
+- Historial de búsquedas personalizado
+
+### Sistema de IA Completo
+- **Clasificador de transacciones**: Categorización automática
+- **Predictor de gastos**: Predicción de gastos futuros
+- **Analizador de comportamiento**: Análisis de patrones
+- **Motor de recomendaciones**: Sugerencias inteligentes
+- **Detector de anomalías**: Detección de transacciones inusuales
+- **Optimizador de presupuestos**: Optimización automática
+
+### Visualizaciones Avanzadas en React
+- **Gráficos interactivos**: Chart.js, D3.js, Recharts
+- **Dashboards en tiempo real**: Actualizaciones automáticas
+- **Métricas clave**: KPIs visuales y dinámicos
+- **Análisis de tendencias**: Gráficos de líneas y barras
+- **Comparativas**: Gráficos de comparación entre períodos
+- **Mapas de calor**: Visualización de patrones de gastos
+
+### Sistema de Pagos (Stripe)
+- **Suscripciones**: Gestión de planes y suscripciones
+- **Pagos**: Procesamiento de pagos seguros
+- **Webhooks**: Eventos en tiempo real
+- **Facturación**: Generación automática de facturas
+
+## 🔧 Mantenimiento y Actualizaciones
+
+### Comandos de Mantenimiento
+```bash
+# Verificar estado del sistema
+cd backend
+python manage.py check
+
+# Limpiar cache
+python manage.py clearcache
+
+# Verificar logs
+tail -f logs/financialhub.log
+
+# Reiniciar servicios
+pkill -f celery
+pkill -f redis-server
+```
+
+### Actualizaciones Recientes
+- **Corrección de errores de Celery**: Solucionados problemas de conexión y monitoreo
+- **Mejora del sistema de monitoreo**: Monitoreo robusto de recursos del sistema
+- **Actualización de dependencias**: Todas las dependencias actualizadas a versiones estables
+- **Optimización de rendimiento**: Mejoras en el procesamiento de tareas asíncronas
+- **Eliminación de Streamlit**: Simplificación de arquitectura con React avanzado
+
+## 📈 Roadmap y Futuras Mejoras
+
+- [x] Sistema de monitoreo avanzado
+- [x] Corrección de errores de Celery
+- [x] Actualización de dependencias
+- [x] Eliminación de Streamlit (simplificación)
+- [ ] Dashboard avanzado con métricas en tiempo real
+- [ ] Integración con bancos (Open Banking)
+- [ ] Análisis de inversiones
+- [ ] Reportes personalizados
+- [ ] API pública para desarrolladores
+- [ ] App móvil nativa
+
+## 🤝 Contribución
+
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+## 🆘 Soporte
+
+Para soporte técnico o preguntas:
+- Crear un issue en GitHub
+- Revisar la documentación en `/docs`
+- Verificar los logs en `backend/logs/`
+- Consultar el estado de Celery con `celery -A financialhub inspect`
 
 

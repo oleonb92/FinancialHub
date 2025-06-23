@@ -13,11 +13,11 @@ app = Celery('financialhub')
 # Configurar Celery usando la configuración de Django
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
-# Cargar configuración desde celeryconfig.py
-app.config_from_object('celeryconfig')
+# Cargar configuración desde config/celery.py
+app.config_from_object('config.celery')
 
 # Cargar tareas automáticamente
-app.autodiscover_tasks()
+app.autodiscover_tasks() 
 
 # Configurar tareas periódicas
 app.conf.beat_schedule = {

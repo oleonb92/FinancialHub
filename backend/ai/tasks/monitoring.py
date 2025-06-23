@@ -3,9 +3,10 @@ Tareas de monitoreo de recursos del sistema.
 """
 import logging
 from celery import shared_task
-from ai.ml.utils.monitoring import ResourceMonitor
+from ai.ml.utils.monitoring.resource_monitor import ResourceMonitor
 from ai.ml.utils.cache.model_cache import ModelCache
 from django.conf import settings
+from django.core.cache import cache as django_cache
 
 logger = logging.getLogger(__name__)
 
@@ -17,30 +18,33 @@ def monitor_resources():
     """
     try:
         monitor = ResourceMonitor()
-        metrics = monitor.get_current_metrics()
+        metrics = monitor.collect_metrics()
         
         # Registrar métricas
         logger.info("Métricas de recursos del sistema:", extra={
-            'cpu_percent': metrics['cpu_percent'],
-            'memory_percent': metrics['memory_percent'],
-            'disk_percent': metrics['disk_percent']
+            'cpu_percent': metrics['cpu']['percent'],
+            'memory_percent': metrics['memory']['percent'],
+            'disk_percent': metrics['disk']['percent']
         })
         
         # Verificar si los recursos están por encima del umbral
-        if metrics['cpu_percent'] > settings.AI_CPU_THRESHOLD:
-            logger.warning(f"Uso de CPU por encima del umbral: {metrics['cpu_percent']}%")
+        if metrics['cpu']['percent'] > getattr(settings, 'AI_CPU_THRESHOLD', 80):
+            logger.warning(f"Uso de CPU por encima del umbral: {metrics['cpu']['percent']}%")
             
-        if metrics['memory_percent'] > settings.AI_MEMORY_THRESHOLD:
-            logger.warning(f"Uso de memoria por encima del umbral: {metrics['memory_percent']}%")
+        if metrics['memory']['percent'] > getattr(settings, 'AI_MEMORY_THRESHOLD', 80):
+            logger.warning(f"Uso de memoria por encima del umbral: {metrics['memory']['percent']}%")
             
-        if metrics['disk_percent'] > settings.AI_DISK_THRESHOLD:
-            logger.warning(f"Uso de disco por encima del umbral: {metrics['disk_percent']}%")
+        if metrics['disk']['percent'] > getattr(settings, 'AI_DISK_THRESHOLD', 90):
+            logger.warning(f"Uso de disco por encima del umbral: {metrics['disk']['percent']}%")
             
         # Limpiar caché si es necesario
-        if metrics['memory_percent'] > settings.AI_MEMORY_THRESHOLD:
-            cache = ModelCache()
-            cache.clear_all()
-            logger.info("Caché de modelos limpiada debido a alto uso de memoria")
+        if metrics['memory']['percent'] > getattr(settings, 'AI_MEMORY_THRESHOLD', 80):
+            try:
+                cache = ModelCache()
+                cache.clear_all_cache()
+                logger.info("Caché de modelos limpiada debido a alto uso de memoria")
+            except Exception as cache_error:
+                logger.error(f"Error limpiando caché: {cache_error}")
             
         return {
             'status': 'success',

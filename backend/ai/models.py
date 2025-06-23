@@ -12,6 +12,7 @@ class AIInteraction(models.Model):
     )
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ai_interactions')
+    organization = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE, related_name='ai_interactions', null=True, blank=True)
     type = models.CharField(max_length=20, choices=INTERACTION_TYPES)
     query = models.TextField()
     response = models.TextField()
@@ -26,6 +27,7 @@ class AIInteraction(models.Model):
         indexes = [
             models.Index(fields=['user', 'type']),
             models.Index(fields=['created_at']),
+            models.Index(fields=['organization']),
         ]
 
     def __str__(self):
@@ -42,6 +44,7 @@ class AIInsight(models.Model):
     )
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ai_insights')
+    organization = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE, related_name='ai_insights', null=True, blank=True)
     type = models.CharField(max_length=20, choices=INSIGHT_TYPES)
     title = models.CharField(max_length=255)
     description = models.TextField()
@@ -57,6 +60,7 @@ class AIInsight(models.Model):
         indexes = [
             models.Index(fields=['user', 'type']),
             models.Index(fields=['is_read']),
+            models.Index(fields=['organization']),
         ]
 
     def __str__(self):
@@ -72,6 +76,7 @@ class AIPrediction(models.Model):
     )
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ai_predictions')
+    organization = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE, related_name='ai_predictions', null=True, blank=True)
     type = models.CharField(max_length=20, choices=PREDICTION_TYPES)
     prediction = models.JSONField()  # Structured prediction data
     confidence_score = models.FloatField()
@@ -85,6 +90,7 @@ class AIPrediction(models.Model):
         indexes = [
             models.Index(fields=['user', 'type']),
             models.Index(fields=['prediction_date']),
+            models.Index(fields=['organization']),
         ]
 
     def __str__(self):

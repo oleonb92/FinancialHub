@@ -42,12 +42,12 @@ class ExpensePredictor(BaseMLModel):
         self.feature_names = ['day_of_week', 'day_of_month', 'month', 'category_id']
         self.is_fitted = False
     
-    def _prepare_features(self, transactions: List[Transaction]) -> pd.DataFrame:
+    def _prepare_features(self, transactions: Union[List[Transaction], List[Dict]]) -> pd.DataFrame:
         """
         Prepare features for training or prediction.
         
         Args:
-            transactions: List of Transaction objects
+            transactions: List of Transaction objects or dictionaries
             
         Returns:
             pd.DataFrame: Prepared features
@@ -56,13 +56,25 @@ class ExpensePredictor(BaseMLModel):
             ValueError: If transaction data is invalid
         """
         try:
-            features = pd.DataFrame({
-                'day_of_week': [t.date.weekday() for t in transactions],
-                'day_of_month': [t.date.day for t in transactions],
-                'month': [t.date.month for t in transactions],
-                'category_id': [t.category.id for t in transactions],
-                'amount': [float(t.amount) for t in transactions]
-            })
+            # Check if we're dealing with dictionaries or Transaction objects
+            if transactions and isinstance(transactions[0], dict):
+                # Handle dictionary format
+                features = pd.DataFrame({
+                    'day_of_week': [t.get('date').weekday() if hasattr(t.get('date'), 'weekday') else 0 for t in transactions],
+                    'day_of_month': [t.get('date').day if hasattr(t.get('date'), 'day') else 1 for t in transactions],
+                    'month': [t.get('date').month if hasattr(t.get('date'), 'month') else 1 for t in transactions],
+                    'category_id': [t.get('category_id', 0) for t in transactions],
+                    'amount': [float(t.get('amount', 0)) for t in transactions]
+                })
+            else:
+                # Handle Transaction objects
+                features = pd.DataFrame({
+                    'day_of_week': [t.date.weekday() for t in transactions],
+                    'day_of_month': [t.date.day for t in transactions],
+                    'month': [t.date.month for t in transactions],
+                    'category_id': [t.category.id for t in transactions],
+                    'amount': [float(t.amount) for t in transactions]
+                })
             return features
         except (ValueError, AttributeError) as e:
             raise ValueError(f"Invalid transaction data: {str(e)}")
@@ -106,12 +118,12 @@ class ExpensePredictor(BaseMLModel):
         except Exception as e:
             raise ValueError(f"Error preparing sequence features: {str(e)}")
     
-    def train(self, transactions: List[Transaction]) -> None:
+    def train(self, transactions: Union[List[Transaction], List[Dict]]) -> None:
         """
         Train the expense predictor.
         
         Args:
-            transactions: List of Transaction objects to train on
+            transactions: List of Transaction objects or dictionaries to train on
             
         Raises:
             ValueError: If no transactions provided or data is invalid

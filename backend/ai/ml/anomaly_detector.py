@@ -51,18 +51,31 @@ class AnomalyDetector:
         Returns:
             DataFrame: Características preparadas
         """
-        features = []
-        for t in transactions:
-            date = t.date
-            features.append({
-                'amount': float(t.amount),
-                'day_of_week': date.weekday(),
-                'day_of_month': date.day,
-                'month': date.month,
-                'category_id': t.category.id if t.category else -1,
-                'hour': date.hour
+        if not transactions:
+            return pd.DataFrame()
+        if isinstance(transactions[0], dict):
+            # Diccionarios
+            dates = [t.get('date') for t in transactions]
+            features = pd.DataFrame({
+                'amount': [float(t.get('amount', 0)) for t in transactions],
+                'day_of_week': [d.weekday() if d is not None else 0 for d in dates],
+                'day_of_month': [d.day if d is not None else 1 for d in dates],
+                'month': [d.month if d is not None else 1 for d in dates],
+                'category_id': [t.get('category_id', 0) for t in transactions],
+                'merchant_hash': [hash(t.get('merchant', '')) % 1000 for t in transactions],
             })
-        return pd.DataFrame(features)
+        else:
+            # Objetos Transaction
+            dates = [t.date for t in transactions]
+            features = pd.DataFrame({
+                'amount': [float(t.amount) for t in transactions],
+                'day_of_week': [d.weekday() if d is not None else 0 for d in dates],
+                'day_of_month': [d.day if d is not None else 1 for d in dates],
+                'month': [d.month if d is not None else 1 for d in dates],
+                'category_id': [t.category.id if t.category else 0 for t in transactions],
+                'merchant_hash': [hash(t.merchant or '') % 1000 for t in transactions],
+            })
+        return features
     
     def train(self, transactions):
         """

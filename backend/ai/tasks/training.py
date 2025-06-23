@@ -30,7 +30,6 @@ def train_models():
     try:
         # Inicializar servicios
         ai_service = AIService()
-        metrics = ModelMetrics()
         versioning = ModelVersioning()
         monitor = ResourceMonitor()
         
@@ -58,25 +57,40 @@ def train_models():
             
         # Entrenar modelos
         results = {}
-        for model_name, model in ai_service.get_models().items():
+        model_names = ['transaction_classifier', 'expense_predictor', 'behavior_analyzer']
+        
+        for model_name in model_names:
             try:
+                # Crear métricas específicas para cada modelo
+                model_metrics = ModelMetrics(model_name)
+                
+                # Obtener el modelo del servicio de IA
+                if model_name == 'transaction_classifier':
+                    model = ai_service.transaction_classifier
+                elif model_name == 'expense_predictor':
+                    model = ai_service.expense_predictor
+                elif model_name == 'behavior_analyzer':
+                    model = ai_service.behavior_analyzer
+                else:
+                    continue
+                
                 # Entrenar modelo
                 model.train(transactions)
                 
                 # Evaluar rendimiento
-                model_metrics = metrics.evaluate_model(model_name, model)
+                metrics_result = model_metrics.evaluate_model(model_name, model)
                 
                 # Guardar nueva versión
                 version = versioning.save_model_version(
                     model_name,
                     model,
-                    model_metrics
+                    metrics_result
                 )
                 
                 results[model_name] = {
                     'status': 'success',
                     'version': version,
-                    'metrics': model_metrics
+                    'metrics': metrics_result
                 }
                 
             except Exception as e:
@@ -106,7 +120,6 @@ def evaluate_models():
     """
     try:
         ai_service = AIService()
-        metrics = ModelMetrics()
         versioning = ModelVersioning()
         
         # Obtener datos de prueba
@@ -124,15 +137,18 @@ def evaluate_models():
         results = {}
         for model_name, model in ai_service.get_models().items():
             try:
+                # Crear métricas específicas para cada modelo
+                model_metrics = ModelMetrics(model_name)
+                
                 # Cargar última versión
                 model = versioning.load_model_version(model_name)
                 
                 # Evaluar rendimiento
-                model_metrics = metrics.evaluate_model(model_name, model)
+                metrics_result = model_metrics.evaluate_model(model_name, model)
                 
                 results[model_name] = {
                     'status': 'success',
-                    'metrics': model_metrics
+                    'metrics': metrics_result
                 }
                 
             except Exception as e:
