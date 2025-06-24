@@ -47,7 +47,8 @@ CACHES = {
 }
 
 # AI settings
-ML_MODELS_DIR = BASE_DIR / 'ai' / 'ml_models'
+# Use the main directory for ML models just like the production settings
+ML_MODELS_DIR = BASE_DIR / 'ml_models'
 
 # Disable password hashers for faster tests
 PASSWORD_HASHERS = [

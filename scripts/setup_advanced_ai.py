@@ -34,7 +34,8 @@ class AdvancedAISetup:
         self.base_dir = Path(__file__).parent.parent
         self.backend_dir = self.base_dir / 'backend'
         self.ai_dir = self.backend_dir / 'ai'
-        self.ml_models_dir = self.ai_dir / 'ml_models'
+        # Store trained models in the main ml_models directory used by Django
+        self.ml_models_dir = self.backend_dir / 'ml_models'
         
     def run_setup(self):
         """Ejecuta la configuración completa."""
