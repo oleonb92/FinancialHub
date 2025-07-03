@@ -3,26 +3,26 @@ from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
 from django.conf import settings
-from django.utils.translation import gettext_lazy as _
+# Translation handled by TranslationService
 
 class User(AbstractUser):
     ROLE_CHOICES = [
-        ('owner', _('Owner')),
-        ('admin', _('Admin')),
-        ('member', _('Member')),
-        ('accountant', _('Accountant')),
-        ('bookkeeper', _('Bookkeeper')),
-        ('advisor', _('Financial Advisor')),
+        ('owner', 'Owner'),
+        ('admin', 'Admin'),
+        ('member', 'Member'),
+        ('accountant', 'Accountant'),
+        ('bookkeeper', 'Bookkeeper'),
+        ('advisor', 'Financial Advisor'),
     ]
 
     LANGUAGE_CHOICES = [
-        ('en', _('English')),
-        ('es', _('Spanish')),
+        ('en', 'English'),
+        ('es', 'Spanish'),
     ]
 
     ACCOUNT_TYPE_CHOICES = [
-        ('personal', _('Personal')),
-        ('accountant', _('Accountant')),
+        ('personal', 'Personal'),
+        ('accountant', 'Accountant'),
     ]
 
     role = models.CharField(
@@ -53,21 +53,21 @@ class User(AbstractUser):
         max_length=20,
         choices=ACCOUNT_TYPE_CHOICES,
         default='personal',
-        help_text=_('Account type: personal or accountant.')
+        help_text='Account type: personal or accountant.'
     )
     pro_features = models.BooleanField(
         default=False,
-        help_text=_('Indicates if the user has global access to Pro features (e.g., pro accountant).')
+        help_text='Indicates if the user has global access to Pro features (e.g., pro accountant).'
     )
     pro_trial_until = models.DateTimeField(
         null=True,
         blank=True,
-        help_text=_('Date until which the user has an active Pro trial.')
+        help_text='Date until which the user has an active Pro trial.'
     )
     pro_features_list = models.JSONField(
         default=list,
         blank=True,
-        help_text=_('List of active Pro features for this user.')
+        help_text='List of active Pro features for this user.'
     )
 
     groups = models.ManyToManyField(
@@ -89,8 +89,8 @@ class User(AbstractUser):
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
 
     class Meta:
-        verbose_name = _('user')
-        verbose_name_plural = _('users')
+        verbose_name = 'user'
+        verbose_name_plural = 'users'
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"

@@ -228,7 +228,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Para servir archivos estáticos
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.locale.LocaleMiddleware',
+    # LocaleMiddleware removed - using TranslationService instead
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -301,3 +301,6 @@ MAINTENANCE_MESSAGE = "Sistema en mantenimiento. Volveremos pronto."
 # Configuración de performance
 CONN_MAX_AGE = 600  # 10 minutos
 OPTIMIZE_QUERIES = True 
+
+# AI Quality Gate Threshold (opcional, solo si se quiere sobrescribir en prod)
+# AI_QUALITY_THRESHOLD = float(os.getenv('AI_QUALITY_THRESHOLD', '0.80')) 

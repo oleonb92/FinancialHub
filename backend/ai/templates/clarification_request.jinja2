@@ -1,0 +1,17 @@
+{% if language == 'es' %}
+❓ **Necesito más información**
+Tu pregunta: "{{ original_query }}"
+
+Para darte una respuesta más precisa, necesito que aclares:
+{% for question in clarification_questions %}
+{{ loop.index }}. {{ question }}
+{% endfor %}
+{% else %}
+❓ **I need more information**
+Your question: "{{ original_query }}"
+
+To give you a more accurate answer, I need you to clarify:
+{% for question in clarification_questions %}
+{{ loop.index }}. {{ question }}
+{% endfor %}
+{% endif %}

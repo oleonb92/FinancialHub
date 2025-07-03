@@ -211,18 +211,12 @@ TEMPLATES = [
 # Configuración de internacionalización para tests
 LANGUAGE_CODE = 'en'
 TIME_ZONE = 'UTC'
-USE_I18N = True
-USE_L10N = True
+USE_I18N = False  # Disabled - using TranslationService
+USE_L10N = False  # Disabled - using TranslationService
 USE_TZ = True
 
-LANGUAGES = [
-    ('en', 'English'),
-    ('es', 'Spanish'),
-]
-
-LOCALE_PATHS = [
-    os.path.join(BASE_DIR, 'locale'),
-]
+# Supported languages for TranslationService
+SUPPORTED_LANGUAGES = ['en', 'es']
 
 # Configuración de archivos estáticos para tests
 STATIC_URL = '/static/'
@@ -327,3 +321,6 @@ AI_MEMORY_THRESHOLD = 90.0
 AI_DISK_THRESHOLD = 95.0
 AI_MIN_MEMORY_GB = 0.5  # Menos memoria requerida para tests
 AI_MIN_DISK_GB = 1.0  # Menos disco requerido para tests 
+
+# AI Quality Gate Threshold (opcional, solo si se quiere sobrescribir en test)
+# AI_QUALITY_THRESHOLD = float(os.getenv('AI_QUALITY_THRESHOLD', '0.80')) 

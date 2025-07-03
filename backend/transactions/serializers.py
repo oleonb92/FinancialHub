@@ -25,40 +25,55 @@ from rest_framework import serializers
 from .models import Tag, Transaction, Category, Budget
 from chartofaccounts.serializers import AccountSerializer
 from chartofaccounts.models import Account
+from ai.services import AIService
+import logging
+from django.conf import settings
+from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
+
+# Singleton para el servicio de IA
+_ai_service_instance = None
+
+def get_ai_service():
+    """Obtiene una instancia singleton del servicio de IA."""
+    global _ai_service_instance
+    if _ai_service_instance is None:
+        _ai_service_instance = AIService()
+    return _ai_service_instance
 
 class CategorySerializer(serializers.ModelSerializer):
-    children = serializers.SerializerMethodField()
-    parent_name = serializers.SerializerMethodField()
+    subcategories = serializers.SerializerMethodField()
+    parent_name = serializers.CharField(source='parent.name', read_only=True)
+    transaction_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'description', 'parent', 'parent_name', 'children', 'organization', 'created_by', 'created_at', 'modified_at']
+        fields = ['id', 'name', 'icon', 'description', 'parent', 'parent_name', 
+                 'organization', 'created_by', 'created_at', 'modified_at', 
+                 'subcategories', 'transaction_count']
         read_only_fields = ['created_by', 'created_at', 'modified_at']
 
-    def get_children(self, obj):
-        # Solo serializar subcategorías si estamos en el nivel superior
-        if obj.parent is None:
-            children = Category.objects.filter(parent=obj, organization=obj.organization)
-            return CategorySerializer(children, many=True).data
-        return []
+    def get_subcategories(self, obj):
+        """Obtiene las subcategorías de esta categoría."""
+        subcategories = Category.objects.filter(parent=obj)
+        return CategorySerializer(subcategories, many=True, context=self.context).data
+    
+    def get_transaction_count(self, obj):
+        """Obtiene el número de transacciones en esta categoría y sus subcategorías."""
+        # Obtener IDs de esta categoría y todas sus subcategorías
+        category_ids = self._get_all_category_ids(obj)
+        return Transaction.objects.filter(category_id__in=category_ids).count()
+    
+    def _get_all_category_ids(self, category):
+        """Obtiene recursivamente todos los IDs de categoría y subcategorías."""
+        if not category:
+            return []
 
-    def get_parent_name(self, obj):
-        return obj.parent.name if obj.parent else None
-
-    def validate(self, data):
-        # Validar que una categoría no sea su propia subcategoría
-        if 'parent' in data and data['parent']:
-            if data['parent'].id == self.instance.id if self.instance else None:
-                raise serializers.ValidationError("Una categoría no puede ser su propia subcategoría")
-            
-            # Validar que no se cree un ciclo en la jerarquía
-            parent = data['parent']
-            while parent:
-                if parent.id == self.instance.id if self.instance else None:
-                    raise serializers.ValidationError("No se puede crear un ciclo en la jerarquía de categorías")
-                parent = parent.parent
-
-        return data
+        ids = [category.id]
+        for subcat in category.children.all():
+            ids += self._get_all_category_ids(subcat)
+        return ids
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
@@ -74,6 +89,7 @@ class TransactionSerializer(serializers.ModelSerializer):
     destination_account_id = serializers.PrimaryKeyRelatedField(queryset=Account.objects.all(), source='destination_account', write_only=True, required=False)
     category = CategorySerializer(read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), source='category', write_only=True, required=False, allow_null=True)
+    classification = serializers.SerializerMethodField()
     
     class Meta:
         model = Transaction
@@ -97,6 +113,7 @@ class TransactionSerializer(serializers.ModelSerializer):
             'is_imported',
             'bank_transaction_id',
             'merchant',
+            'classification',
         ]
         extra_kwargs = {
             'source_account': {'read_only': True},
@@ -105,6 +122,10 @@ class TransactionSerializer(serializers.ModelSerializer):
         
     def get_tags(self, obj):
         return [tag.name for tag in obj.tags.all()]
+        
+    def get_classification(self, obj):
+        # Optimización: Solo devolver estado pendiente para evitar análisis síncrono
+        return {'status': 'pending'}
         
     def create(self, validated_data):
         tag_names = validated_data.pop('tag_names', [])
@@ -125,6 +146,47 @@ class TransactionSerializer(serializers.ModelSerializer):
                 instance.tags.add(tag)
         instance.save()
         return instance
+
+    def to_representation(self, instance):
+        """Personaliza la representación de la transacción optimizada para rendimiento."""
+        data = super().to_representation(instance)
+        
+        # Agregar información de análisis de IA desde caché o campos del modelo
+        if instance.ai_analyzed:
+            data['ai_analysis'] = {
+                'analyzed': True,
+                'confidence': instance.ai_confidence,
+                'suggested_category_id': instance.ai_category_suggestion.id if instance.ai_category_suggestion else None,
+                'notes': instance.ai_notes,
+                'quality_status': 'high' if instance.ai_confidence and instance.ai_confidence >= 0.85 else 'fallback'
+            }
+        else:
+            data['ai_analysis'] = {
+                'analyzed': False,
+                'confidence': None,
+                'suggested_category_id': None,
+                'notes': None,
+                'quality_status': 'not_analyzed'
+            }
+        
+        # Obtener sugerencias desde caché en lugar de análisis síncrono
+        cache_key = f"transaction_suggestion_{instance.id}"
+        cached_suggestion = cache.get(cache_key)
+        
+        if cached_suggestion:
+            data['category_suggestion'] = cached_suggestion
+        else:
+            # Si no hay caché, devolver estado básico
+            data['category_suggestion'] = {
+                'status': 'pending',
+                'message': 'Análisis en progreso...',
+                'needs_update': False,
+                'current_category_id': instance.category.id if instance.category else None,
+                'suggested_category_id': None,
+                'already_approved': False
+            }
+        
+        return data
 
 class BudgetSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)

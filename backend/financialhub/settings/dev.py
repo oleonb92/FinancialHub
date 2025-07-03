@@ -132,3 +132,6 @@ SITE_URL = os.getenv('SITE_URL', 'http://localhost:3000')
 DJANGO_SUPERUSER_USERNAME = os.getenv('DJANGO_SUPERUSER_USERNAME', 'oleonb')
 DJANGO_SUPERUSER_EMAIL = os.getenv('DJANGO_SUPERUSER_EMAIL', 'osmanileon92@gmail.com')
 DJANGO_SUPERUSER_PASSWORD = os.getenv('DJANGO_SUPERUSER_PASSWORD', 'Natali@rca1992') 
+
+# AI Quality Gate Threshold (opcional, solo si se quiere sobrescribir en dev)
+AI_QUALITY_THRESHOLD = float(os.getenv('AI_QUALITY_THRESHOLD', '0.85')) 

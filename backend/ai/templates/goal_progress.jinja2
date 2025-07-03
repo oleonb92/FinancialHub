@@ -1,0 +1,13 @@
+{% if language == 'es' %}
+🎯 **Progreso hacia {{ goal_name }}**
+Monto actual: {{ formatted_current }}
+Meta: {{ formatted_target }}
+Progreso: {{ formatted_percentage }}
+{% if is_complete %}✅ ¡Meta alcanzada!{% else %}Faltan: {{ formatted_remaining }}{% endif %}
+{% else %}
+🎯 **Progress towards {{ goal_name }}**
+Current amount: {{ formatted_current }}
+Target: {{ formatted_target }}
+Progress: {{ formatted_percentage }}
+{% if is_complete %}✅ Goal achieved!{% else %}Remaining: {{ formatted_remaining }}{% endif %}
+{% endif %}

@@ -54,4 +54,17 @@ urlpatterns = [
     # Endpoints de A/B Testing
     path('ab-testing/', views.ABTestingView.as_view(), name='ai-ab-testing'),
     path('ab-testing/results/', views.ABTestingResultsView.as_view(), name='ai-ab-testing-results'),
+
+    # Quality Gate endpoints
+    path('quality/status/', views.quality_gate_status, name='quality_gate_status'),
+    path('quality/retrain/', views.retrain_low_performance_models, name='retrain_models'),
+    path('quality/model/<str:model_name>/', views.model_quality_details, name='model_quality_details'),
+    path('quality/check/', views.force_quality_check, name='force_quality_check'),
+    path('quality/alerts/', views.quality_alerts, name='quality_alerts'),
+    path('quality/threshold/', views.update_quality_threshold, name='update_quality_threshold'),
+
+    # Chatbot endpoints
+    path('chat/', views.chat_with_ai, name='chat_with_ai'),
+    path('chat/stats/', views.get_chat_stats, name='get_chat_stats'),
+    path('chat/clear/', views.clear_chat_context, name='clear_chat_context'),
 ] 

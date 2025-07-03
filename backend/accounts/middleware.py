@@ -77,6 +77,10 @@ class OrganizationMiddleware(MiddlewareMixin):
 
         # Procesar organización
         org_id = request.headers.get('X-Organization-ID') or request.GET.get('organization_id')
+        
+        # Debug: verificar el valor recibido
+        logger.debug(f"Valor recibido en X-Organization-ID: '{org_id}' (tipo: {type(org_id)})")
+        
         org = None
 
         if org_id:

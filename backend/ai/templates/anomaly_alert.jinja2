@@ -1,0 +1,13 @@
+{% if language == 'es' %}
+{{ severity_emoji }} **Alerta de Anomalía**
+Tipo: {{ anomaly_type }}
+Monto: {{ formatted_amount }}
+Fecha: {{ date }}
+Descripción: {{ description }}
+{% else %}
+{{ severity_emoji }} **Anomaly Alert**
+Type: {{ anomaly_type }}
+Amount: {{ formatted_amount }}
+Date: {{ date }}
+Description: {{ description }}
+{% endif %}

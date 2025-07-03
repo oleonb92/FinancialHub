@@ -1,0 +1,129 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="header">
+    <h1>{{ title }}</h1>
+    <p>{{ subtitle }}</p>
+    <p>Generated on {{ generated_date }}</p>
+</div>
+
+<div class="section">
+    <h2>📊 Financial Summary</h2>
+    <div class="metrics">
+        <div class="metric">
+            <div class="metric-value">${{ "%.2f"|format(summary.total_income) }}</div>
+            <div class="metric-label">Total Income</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">${{ "%.2f"|format(summary.total_expenses) }}</div>
+            <div class="metric-label">Total Expenses</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">${{ "%.2f"|format(summary.net_balance) }}</div>
+            <div class="metric-label">Net Balance</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">{{ summary.total_transactions }}</div>
+            <div class="metric-label">Transactions</div>
+        </div>
+    </div>
+</div>
+
+{% if include_charts %}
+<div class="section">
+    <h2>📈 Monthly Trends</h2>
+    <div class="chart-container">
+        <div id="monthly-trends-chart"></div>
+    </div>
+</div>
+
+<div class="section">
+    <h2>💸 Expense Categories</h2>
+    <div class="chart-container">
+        <div id="expense-categories-chart"></div>
+    </div>
+</div>
+
+<div class="section">
+    <h2>💰 Income vs Expenses</h2>
+    <div class="chart-container">
+        <div id="income-expenses-chart"></div>
+    </div>
+</div>
+{% endif %}
+
+{% if include_insights and insights %}
+<div class="section">
+    <h2>💡 Key Insights</h2>
+    {% for insight in insights %}
+    <div class="insight">
+        <strong>{{ insight.title }}</strong><br>
+        {{ insight.description }}
+        {% if insight.recommendation %}
+        <br><em>Recommendation: {{ insight.recommendation }}</em>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if include_goals and goals %}
+<div class="section">
+    <h2>🎯 Goal Progress</h2>
+    {% for goal in goals %}
+    <div class="goal">
+        <strong>{{ goal.name }}</strong><br>
+        Progress: {{ goal.progress }}% ({{ goal.current }}/{{ goal.target }})
+        {% if goal.status == 'on_track' %}
+        <span style="color: green;">✓ On Track</span>
+        {% elif goal.status == 'at_risk' %}
+        <span style="color: orange;">⚠ At Risk</span>
+        {% else %}
+        <span style="color: red;">✗ Behind</span>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if include_anomalies and anomalies %}
+<div class="section">
+    <h2>⚠️ Anomalies Detected</h2>
+    {% for anomaly in anomalies %}
+    <div class="anomaly">
+        <strong>{{ anomaly.title }}</strong><br>
+        {{ anomaly.description }}
+        {% if anomaly.severity == 'high' %}
+        <span style="color: red;">High Priority</span>
+        {% elif anomaly.severity == 'medium' %}
+        <span style="color: orange;">Medium Priority</span>
+        {% else %}
+        <span style="color: blue;">Low Priority</span>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="footer">
+    <p>This report was generated automatically by FinancialHub AI</p>
+    <p>For questions or support, please contact our team</p>
+</div>
+
+{% if include_charts %}
+<script>
+    // Monthly trends chart
+    var monthlyData = {{ monthly_chart_data | safe }};
+    Plotly.newPlot('monthly-trends-chart', monthlyData.data, monthlyData.layout);
+    
+    // Expense categories chart
+    var categoriesData = {{ categories_chart_data | safe }};
+    Plotly.newPlot('expense-categories-chart', categoriesData.data, categoriesData.layout);
+    
+    // Income vs expenses chart
+    var incomeExpensesData = {{ income_expenses_chart_data | safe }};
+    Plotly.newPlot('income-expenses-chart', incomeExpensesData.data, incomeExpensesData.layout);
+</script>
+{% endif %}
+{% endblock %}

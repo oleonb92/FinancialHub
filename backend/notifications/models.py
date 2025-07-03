@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from django.utils.translation import gettext_lazy as _
+# Translation handled by TranslationService
 
 class Notification(models.Model):
     NOTIFICATION_TYPES = (

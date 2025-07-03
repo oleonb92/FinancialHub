@@ -1,0 +1,49 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="header">
+    <h1>Financial Summary Report</h1>
+    <p>Period: {{ period }}</p>
+    <p>Generated on {{ generated_date }}</p>
+</div>
+
+<div class="section">
+    <h2>Quick Overview</h2>
+    <div class="metrics">
+        <div class="metric">
+            <div class="metric-value">${{ "%.2f"|format(summary.net_balance) }}</div>
+            <div class="metric-label">Current Balance</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">{{ summary.savings_rate }}%</div>
+            <div class="metric-label">Savings Rate</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">{{ summary.top_category }}</div>
+            <div class="metric-label">Top Expense</div>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <h2>Key Metrics</h2>
+    <ul>
+        <li>Average monthly income: ${{ "%.2f"|format(summary.avg_monthly_income) }}</li>
+        <li>Average monthly expenses: ${{ "%.2f"|format(summary.avg_monthly_expenses) }}</li>
+        <li>Total transactions this period: {{ summary.total_transactions }}</li>
+        <li>Most active spending day: {{ summary.most_active_day }}</li>
+    </ul>
+</div>
+
+{% if insights %}
+<div class="section">
+    <h2>Insights</h2>
+    {% for insight in insights %}
+    <div class="insight">
+        {{ insight }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

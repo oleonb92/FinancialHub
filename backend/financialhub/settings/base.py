@@ -72,7 +72,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.locale.LocaleMiddleware',  # Internationalization
+    # LocaleMiddleware removed - using TranslationService instead
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -132,21 +132,15 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Internationalization
+# Internationalization - Using TranslationService instead of Django i18n
 LANGUAGE_CODE = 'en'
 TIME_ZONE = 'UTC'
-USE_I18N = True
-USE_L10N = True
+USE_I18N = False  # Disabled - using TranslationService
+USE_L10N = False  # Disabled - using TranslationService
 USE_TZ = True
 
-LANGUAGES = [
-    ('en', 'English'),
-    ('es', 'Spanish'),
-]
-
-LOCALE_PATHS = [
-    os.path.join(BASE_DIR, 'locale'),
-]
+# Supported languages for TranslationService
+SUPPORTED_LANGUAGES = ['en', 'es']
 
 # Static files (CSS, JavaScript, Images) - desde variables de entorno
 STATIC_URL = os.getenv('STATIC_URL', '/static/')
@@ -393,3 +387,6 @@ AUTH_USER_MODEL = 'accounts.User'
 
 # ML Models directory for AI tests and services - desde variables de entorno
 ML_MODELS_DIR = os.getenv('AI_MODELS_PATH', os.path.join(BASE_DIR, 'ml_models')) 
+
+# AI Quality Gate Threshold (umbral de confianza mínimo para sugerencias de IA)
+AI_QUALITY_THRESHOLD = float(os.getenv('AI_QUALITY_THRESHOLD', '0.80'))  # 80% por defecto 

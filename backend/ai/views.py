@@ -29,6 +29,7 @@ import traceback
 import logging
 from rest_framework import permissions
 from rest_framework.exceptions import AuthenticationFailed
+from .ml.llm_service import get_llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -1605,4 +1606,378 @@ class GetModelMetricsView(generics.GenericAPIView):
             return Response({
                 'status': 'error',
                 'message': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST) 
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def quality_gate_status(request):
+    """
+    Obtiene el estado actual del Quality Gate del sistema de IA.
+    
+    Returns:
+        JSON con el estado de calidad de todos los modelos
+    """
+    try:
+        ai_service = AIService()
+        quality_report = ai_service.get_quality_report()
+        
+        return Response({
+            'status': 'success',
+            'data': quality_report,
+            'timestamp': timezone.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting quality gate status: {str(e)}")
+        return Response({
+            'status': 'error',
+            'error': str(e)
+        }, status=500)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def retrain_low_performance_models(request):
+    """
+    Re-entrena automáticamente modelos con rendimiento bajo.
+    
+    Returns:
+        JSON con el resultado del re-entrenamiento
+    """
+    try:
+        ai_service = AIService()
+        retrain_result = ai_service.auto_retrain_low_performance_models()
+        
+        return Response({
+            'status': 'success',
+            'data': retrain_result,
+            'timestamp': timezone.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error retraining models: {str(e)}")
+        return Response({
+            'status': 'error',
+            'error': str(e)
+        }, status=500)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def model_quality_details(request, model_name):
+    """
+    Obtiene detalles de calidad de un modelo específico.
+    
+    Args:
+        model_name: Nombre del modelo
+        
+    Returns:
+        JSON con detalles de calidad del modelo
+    """
+    try:
+        ai_service = AIService()
+        
+        if model_name not in ai_service.metrics:
+            return Response({
+                'status': 'error',
+                'error': f'Model {model_name} not found'
+            }, status=404)
+        
+        metrics = ai_service.metrics[model_name]
+        latest_metrics = metrics.get_latest_metrics()
+        history = metrics.get_metrics_history(days=30)
+        
+        # Verificar calidad
+        quality_check = ai_service.quality_gate_check(model_name, {
+            'confidence': latest_metrics.get('confidence', 0) if latest_metrics else 0
+        })
+        
+        return Response({
+            'status': 'success',
+            'data': {
+                'model_name': model_name,
+                'latest_metrics': latest_metrics,
+                'history': history,
+                'quality_check': quality_check,
+                'quality_threshold': ai_service.quality_gate_config['min_accuracy']
+            },
+            'timestamp': timezone.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting model quality details: {str(e)}")
+        return Response({
+            'status': 'error',
+            'error': str(e)
+        }, status=500)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def force_quality_check(request):
+    """
+    Fuerza una verificación de calidad completa del sistema.
+    
+    Returns:
+        JSON con el resultado de la verificación
+    """
+    try:
+        ai_service = AIService()
+        
+        # Verificar calidad de todos los modelos
+        quality_results = {}
+        for model_name in ai_service.metrics.keys():
+            quality_results[model_name] = ai_service.quality_gate_check(model_name, {})
+        
+        # Contar problemas
+        failed_models = [name for name, result in quality_results.items() 
+                        if not result.get('passed', False)]
+        
+        # Generar recomendaciones
+        recommendations = []
+        for model_name, result in quality_results.items():
+            if not result.get('passed', False):
+                recommendations.append({
+                    'model': model_name,
+                    'issue': result.get('reason', 'Unknown issue'),
+                    'action': result.get('action', 'investigate')
+                })
+        
+        return Response({
+            'status': 'success',
+            'data': {
+                'quality_results': quality_results,
+                'failed_models': failed_models,
+                'total_models': len(quality_results),
+                'passing_models': len(quality_results) - len(failed_models),
+                'recommendations': recommendations
+            },
+            'timestamp': timezone.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in force quality check: {str(e)}")
+        return Response({
+            'status': 'error',
+            'error': str(e)
+        }, status=500)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def quality_alerts(request):
+    """
+    Obtiene alertas de calidad recientes.
+    
+    Returns:
+        JSON con alertas de calidad
+    """
+    try:
+        # Obtener insights de tipo 'risk' relacionados con calidad
+        alerts = AIInsight.objects.filter(
+            type='risk',
+            title__icontains='Calidad'
+        ).order_by('-created_at')[:10]
+        
+        alert_data = []
+        for alert in alerts:
+            alert_data.append({
+                'id': alert.id,
+                'title': alert.title,
+                'description': alert.description,
+                'impact_score': alert.impact_score,
+                'created_at': alert.created_at.isoformat(),
+                'data': alert.data
+            })
+        
+        return Response({
+            'status': 'success',
+            'data': {
+                'alerts': alert_data,
+                'total_alerts': len(alert_data)
+            },
+            'timestamp': timezone.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting quality alerts: {str(e)}")
+        return Response({
+            'status': 'error',
+            'error': str(e)
+        }, status=500)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_quality_threshold(request):
+    """
+    Actualiza el umbral de calidad del sistema.
+    
+    Body:
+        threshold: Nuevo umbral (0.0 - 1.0)
+        
+    Returns:
+        JSON con confirmación del cambio
+    """
+    try:
+        threshold = request.data.get('threshold')
+        
+        if threshold is None:
+            return Response({
+                'status': 'error',
+                'error': 'Threshold parameter is required'
+            }, status=400)
+        
+        if not isinstance(threshold, (int, float)) or threshold < 0 or threshold > 1:
+            return Response({
+                'status': 'error',
+                'error': 'Threshold must be a number between 0 and 1'
+            }, status=400)
+        
+        ai_service = AIService()
+        old_threshold = ai_service.quality_gate_config['min_accuracy']
+        ai_service.quality_gate_config['min_accuracy'] = threshold
+        
+        # Verificar impacto del cambio
+        quality_report = ai_service.get_quality_report()
+        
+        return Response({
+            'status': 'success',
+            'data': {
+                'old_threshold': old_threshold,
+                'new_threshold': threshold,
+                'impact_analysis': {
+                    'models_affected': len([m for m in quality_report['models_status'].values() 
+                                          if m['status'] == 'fail']),
+                    'overall_status': quality_report['overall_status']
+                }
+            },
+            'timestamp': timezone.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating quality threshold: {str(e)}")
+        return Response({
+            'status': 'error',
+            'error': str(e)
+        }, status=500)
+
+@api_view(['POST'])
+@permission_classes(get_ai_permissions())
+def chat_with_ai(request):
+    """
+    Endpoint para chat con IA financiera.
+    
+    POST /api/ai/chat/
+    {
+        "message": "¿Cuánto gasté en restaurantes este mes?",
+        "clear_context": false
+    }
+    """
+    try:
+        message = request.data.get('message', '').strip()
+        clear_context = request.data.get('clear_context', False)
+        
+        if not message:
+            return Response({
+                'error': 'El mensaje es requerido'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Obtener usuario y organización
+        user = request.user
+        organization = getattr(request, 'organization', None)
+        
+        if not organization:
+            return Response({
+                'error': 'Organización no encontrada'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Obtener servicio LLM
+        llm_service = get_llm_service()
+        
+        # Limpiar contexto si se solicita
+        if clear_context:
+            llm_service.clear_conversation_context(user.id, organization.id)
+        
+        # Procesar mensaje
+        result = llm_service.chat(user.id, organization.id, message)
+        
+        if result['success']:
+            return Response({
+                'response': result['response'],
+                'model_used': result['model_used'],
+                'tokens_used': result['tokens_used'],
+                'processing_time': result['processing_time'],
+                'timestamp': timezone.now().isoformat()
+            })
+        else:
+            return Response({
+                'response': result['response'],
+                'error': result['error'],
+                'model_used': 'fallback',
+                'timestamp': timezone.now().isoformat()
+            })
+            
+    except Exception as e:
+        logger.error(f"Error en chat con IA: {str(e)}", exc_info=True)
+        return Response({
+            'error': 'Error interno del servidor',
+            'response': 'Lo siento, no puedo procesar tu consulta en este momento.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes(get_ai_permissions())
+def get_chat_stats(request):
+    """
+    Obtiene estadísticas de la conversación del usuario.
+    
+    GET /api/ai/chat/stats/
+    """
+    try:
+        user = request.user
+        organization = getattr(request, 'organization', None)
+        
+        if not organization:
+            return Response({
+                'error': 'Organización no encontrada'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        llm_service = get_llm_service()
+        stats = llm_service.get_conversation_stats(user.id, organization.id)
+        
+        return Response({
+            'stats': stats,
+            'timestamp': timezone.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo estadísticas de chat: {str(e)}", exc_info=True)
+        return Response({
+            'error': 'Error interno del servidor'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes(get_ai_permissions())
+def clear_chat_context(request):
+    """
+    Limpia el contexto de conversación del usuario.
+    
+    POST /api/ai/chat/clear/
+    """
+    try:
+        user = request.user
+        organization = getattr(request, 'organization', None)
+        
+        if not organization:
+            return Response({
+                'error': 'Organización no encontrada'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        llm_service = get_llm_service()
+        llm_service.clear_conversation_context(user.id, organization.id)
+        
+        return Response({
+            'message': 'Contexto de conversación limpiado exitosamente',
+            'timestamp': timezone.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error limpiando contexto de chat: {str(e)}", exc_info=True)
+        return Response({
+            'error': 'Error interno del servidor'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 

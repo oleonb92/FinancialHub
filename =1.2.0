@@ -1,6 +1,0 @@
-Collecting flaml
-  Downloading FLAML-2.3.5-py3-none-any.whl.metadata (16 kB)
-Requirement already satisfied: NumPy>=1.17 in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (from flaml) (1.26.4)
-Downloading FLAML-2.3.5-py3-none-any.whl (322 kB)
-Installing collected packages: flaml
-Successfully installed flaml-2.3.5

@@ -17,6 +17,7 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.model_selection import train_test_split
 import math
+import os
 import logging
 from typing import Dict, List, Tuple, Any, Optional, Union
 from datetime import datetime
@@ -39,6 +40,7 @@ class TransformerConfig:
     learning_rate: float = 1e-4
     batch_size: int = 32
     epochs: int = 100
+    num_classes: int = 1
 
 class PositionalEncoding(nn.Module):
     """Codificación posicional para transformers"""
@@ -182,15 +184,14 @@ class FinancialTransformer(nn.Module):
         """Crea máscara de padding"""
         return (seq != 0).unsqueeze(1).unsqueeze(2)
     
-    def forward(self, x, mask=None):
+    def forward(self, input_ids, mask=None):
+        # input_ids: (batch, seq_len)
+        if mask is None:
+            mask = self.create_padding_mask(input_ids)
         # Embeddings + posicional encoding
-        x = self.embedding(x) * math.sqrt(self.config.d_model)
+        x = self.embedding(input_ids) * math.sqrt(self.config.d_model)
         x = self.pos_encoding(x)
         x = self.dropout(x)
-        
-        # Crear máscara si no se proporciona
-        if mask is None:
-            mask = self.create_padding_mask(x)
         
         # Pasar por bloques de transformer
         for transformer_block in self.transformer_blocks:
@@ -472,6 +473,113 @@ class FinancialTransformerService:
             logger.error(f"Error entrenando modelo transformer: {str(e)}")
             raise
     
+    def train_transformer_model(self, texts: List[str], labels: List[int]):
+        """
+        Entrena el modelo transformer para clasificación.
+        
+        Args:
+            texts: Lista de textos
+            labels: Etiquetas de clase (enteros)
+            
+        Returns:
+            Dict con información del entrenamiento
+        """
+        try:
+            logger.info(f"Entrenando transformer model con {len(texts)} textos...")
+            
+            # Convertir labels a float si es necesario
+            if labels and isinstance(labels[0], int):
+                labels = [float(label) for label in labels]
+            
+            # Entrenar modelo
+            self.train_model(texts, labels)
+            
+            # Evaluar modelo
+            test_loader, _ = self.prepare_data(texts[:100], labels[:100] if labels else None)
+            predictions = self.trainer.predict(test_loader)
+            
+            # Calcular accuracy básica
+            if labels:
+                correct = sum(1 for i, pred in enumerate(predictions[:100]) 
+                            if abs(pred - labels[i]) < 0.5)
+                accuracy = correct / min(100, len(labels))
+            else:
+                accuracy = 0.0
+            
+            logger.info(f"Transformer model entrenado exitosamente - Accuracy: {accuracy:.3f}")
+            
+            return {
+                'status': 'success',
+                'accuracy': accuracy,
+                'training_samples': len(texts)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error entrenando transformer model: {str(e)}")
+            return {'error': str(e)}
+    
+    def save_models(self, filepath_prefix: str = None):
+        """
+        Guarda los modelos transformer.
+        """
+        try:
+            if filepath_prefix is None:
+                filepath_prefix = 'backend/ml_models'
+            
+            # Crear directorio si no existe
+            os.makedirs(filepath_prefix, exist_ok=True)
+            
+            # Guardar modelo
+            model_path = f"{filepath_prefix}/transformer_model.pth"
+            self.trainer.save_model(model_path)
+            
+            # Guardar tokenizer
+            tokenizer_path = f"{filepath_prefix}/tokenizer.joblib"
+            joblib.dump(self.tokenizer, tokenizer_path)
+            
+            # Guardar config
+            config_path = f"{filepath_prefix}/transformer_config.json"
+            with open(config_path, 'w') as f:
+                json.dump(self.config.__dict__, f, indent=2)
+            
+            logger.info(f"Transformer models guardados en {filepath_prefix}")
+            
+        except Exception as e:
+            logger.error(f"Error guardando transformer models: {str(e)}")
+    
+    def load_models(self, filepath_prefix: str = None):
+        """
+        Carga los modelos transformer.
+        """
+        try:
+            if filepath_prefix is None:
+                filepath_prefix = 'backend/ml_models'
+            
+            # Cargar modelo
+            model_path = f"{filepath_prefix}/transformer_model.pth"
+            if os.path.exists(model_path):
+                try:
+                    self.trainer.load_model(model_path)
+                    logger.info(f"Transformer model cargado desde {model_path}")
+                except Exception as e:
+                    logger.warning(f"Error cargando transformer model desde {model_path}: {str(e)}")
+            else:
+                logger.warning(f"Archivo de modelo no encontrado: {model_path}")
+            
+            # Cargar tokenizer
+            tokenizer_path = f"{filepath_prefix}/tokenizer.joblib"
+            if os.path.exists(tokenizer_path):
+                try:
+                    self.tokenizer = joblib.load(tokenizer_path)
+                    logger.info(f"Tokenizer cargado desde {tokenizer_path}")
+                except Exception as e:
+                    logger.warning(f"Error cargando tokenizer desde {tokenizer_path}: {str(e)}")
+            else:
+                logger.warning(f"Archivo de tokenizer no encontrado: {tokenizer_path}")
+                
+        except Exception as e:
+            logger.error(f"Error cargando transformer models: {str(e)}")
+    
     def predict(self, texts: List[str]) -> np.ndarray:
         """Realiza predicciones"""
         if self.model is None:
@@ -535,7 +643,7 @@ class FinancialTransformerService:
                 'id_to_word': self.tokenizer.id_to_word,
                 'vocab_size': self.tokenizer.vocab_size
             }
-            joblib.dump(tokenizer_data, f"{filepath_prefix}_tokenizer.joblib")
+            joblib.dump(tokenizer_data, f"{filepath_prefix}/tokenizer.joblib")
             
             logger.info(f"Modelo y tokenizador guardados con prefijo: {filepath_prefix}")
             
@@ -547,7 +655,7 @@ class FinancialTransformerService:
         """Carga el modelo y tokenizador"""
         try:
             # Cargar tokenizador
-            tokenizer_data = joblib.load(f"{filepath_prefix}_tokenizer.joblib")
+            tokenizer_data = joblib.load(f"{filepath_prefix}/tokenizer.joblib")
             self.tokenizer.word_to_id = tokenizer_data['word_to_id']
             self.tokenizer.id_to_word = tokenizer_data['id_to_word']
             self.tokenizer.vocab_size = tokenizer_data['vocab_size']

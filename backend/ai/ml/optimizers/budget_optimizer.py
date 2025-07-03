@@ -70,35 +70,29 @@ class BudgetOptimizer(BaseMLModel):
         try:
             if not transactions:
                 raise ValueError("No transactions provided for training")
-                
-            # Preparar datos de entrenamiento
-            training_data = self._prepare_training_data(transactions)
-            
-            if training_data.empty:
-                raise ValueError("No valid training data extracted")
-            
-            # Separar features y target
-            X = training_data.drop(['amount', 'category_id'], axis=1)
-            y = training_data['amount']
-            
+            features = self._prepare_features(transactions)
+            if features.empty:
+                raise ValueError("No valid features extracted from transactions")
+            # Filtrar filas con NaN en features esenciales
+            essential_features = ['month', 'day_of_week', 'category_id', 'historical_avg', 'seasonal_factor', 'trend_factor', 'volatility']
+            before = len(features)
+            mask = features[essential_features].notnull().all(axis=1)
+            features = features[mask]
+            after = len(features)
+            if after < before:
+                self.logger.warning(f"Filtradas {before - after} filas con NaN en features esenciales para entrenamiento de presupuesto.")
+            if len(features) == 0:
+                raise ValueError("No valid data after filtering NaNs in essential features.")
+            # Calcular scores de eficiencia
+            efficiency_scores = self._calculate_efficiency_scores(features)
             # Escalar features
-            X_scaled = self.scaler.fit_transform(X)
-            
-            # Entrenar predictor de gastos
-            self.expense_predictor.fit(X_scaled, y)
-            
+            X_scaled = self.scaler.fit_transform(features)
             # Entrenar analizador de eficiencia
-            efficiency_scores = self._calculate_efficiency_scores(transactions)
             self.efficiency_analyzer.fit(X_scaled, efficiency_scores)
-            
             self.is_fitted = True
             self.is_trained = True
-            
-            # Guardar modelo entrenado
             self.save()
-            
-            self.logger.info(f"Budget optimizer trained on {len(transactions)} transactions")
-            
+            self.logger.info(f"Model trained on {len(features)} transactions")
         except Exception as e:
             self.logger.error(f"Error training budget optimizer: {str(e)}")
             raise RuntimeError(f"Failed to train budget optimizer: {str(e)}")

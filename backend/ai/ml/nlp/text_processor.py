@@ -20,6 +20,7 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import classification_report, accuracy_score
 import re
 import string
+import os
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk.corpus import stopwords
@@ -78,13 +79,23 @@ class FinancialTextProcessor:
     def _download_nltk_resources(self):
         """Descarga recursos necesarios de NLTK"""
         try:
-            nltk.download('punkt', quiet=True)
-            nltk.download('stopwords', quiet=True)
-            nltk.download('wordnet', quiet=True)
-            nltk.download('averaged_perceptron_tagger', quiet=True)
-            nltk.download('maxent_ne_chunker', quiet=True)
-            nltk.download('words', quiet=True)
-            nltk.download('vader_lexicon', quiet=True)
+            # Descargar recursos básicos
+            resources = [
+                'punkt',
+                'stopwords', 
+                'wordnet',
+                'averaged_perceptron_tagger',
+                'maxent_ne_chunker',
+                'words',
+                'vader_lexicon'
+            ]
+            
+            for resource in resources:
+                try:
+                    nltk.download(resource, quiet=True)
+                except Exception as e:
+                    logger.warning(f"Error descargando {resource}: {e}")
+                    
         except Exception as e:
             logger.warning(f"Error descargando recursos NLTK: {e}")
     
@@ -134,17 +145,28 @@ class FinancialTextProcessor:
             if remove_punctuation:
                 text = re.sub(r'[^\w\s]', '', text)
             
-            # Tokenización
-            tokens = word_tokenize(text)
+            # Tokenización robusta
+            try:
+                tokens = word_tokenize(text)
+            except Exception as tokenize_error:
+                logger.warning(f"Error en tokenización NLTK, usando split simple: {tokenize_error}")
+                # Fallback: tokenización simple
+                tokens = text.split()
             
             # Remover palabras vacías
             if remove_stopwords:
-                stop_words = set(stopwords.words('english'))
-                tokens = [token for token in tokens if token not in stop_words]
+                try:
+                    stop_words = set(stopwords.words('english'))
+                    tokens = [token for token in tokens if token not in stop_words]
+                except Exception as stopwords_error:
+                    logger.warning(f"Error cargando stopwords, saltando: {stopwords_error}")
             
             # Lematización
             if lemmatize:
-                tokens = [self.lemmatizer.lemmatize(token) for token in tokens]
+                try:
+                    tokens = [self.lemmatizer.lemmatize(token) for token in tokens]
+                except Exception as lemmatize_error:
+                    logger.warning(f"Error en lematización, saltando: {lemmatize_error}")
             
             # Unir tokens
             processed_text = ' '.join(tokens)
@@ -188,7 +210,12 @@ class FinancialTextProcessor:
             entities['dates'] = re.findall(date_pattern, text)
             
             # Extraer términos financieros
-            tokens = word_tokenize(text.lower())
+            try:
+                tokens = word_tokenize(text.lower())
+            except Exception as tokenize_error:
+                logger.warning(f"Error en tokenización para entidades, usando split: {tokenize_error}")
+                tokens = text.lower().split()
+            
             entities['financial_terms'] = [
                 token for token in tokens 
                 if token in self.financial_terms['financial_entities']
@@ -367,6 +394,88 @@ class FinancialTextProcessor:
         except Exception as e:
             logger.error(f"Error extrayendo temas: {str(e)}")
             return {'error': str(e)}
+    
+    def train_topic_model(self, texts: List[str], categories: List[str] = None, 
+                         n_topics: int = 10, method: str = 'lda') -> Dict[str, Any]:
+        """
+        Entrena un modelo de topic modeling.
+        
+        Args:
+            texts: Lista de textos para entrenar
+            categories: Categorías asociadas (opcional)
+            n_topics: Número de temas
+            method: Método de topic modeling
+            
+        Returns:
+            Dict con información del modelo entrenado
+        """
+        try:
+            logger.info(f"Entrenando topic model con {len(texts)} textos...")
+            
+            # Extraer temas
+            result = self.extract_topics(texts, n_topics, method)
+            
+            if 'error' in result:
+                return result
+            
+            # Guardar modelo
+            self.topic_model = {
+                'model': result,
+                'method': method,
+                'n_topics': n_topics,
+                'topics': result.get('topics', [])
+            }
+            
+            logger.info(f"Topic model entrenado exitosamente con {n_topics} temas")
+            return {
+                'status': 'success',
+                'n_topics': n_topics,
+                'method': method,
+                'topics': result.get('topics', [])
+            }
+            
+        except Exception as e:
+            logger.error(f"Error entrenando topic model: {str(e)}")
+            return {'error': str(e)}
+    
+    def save_topic_model(self, filepath: str = None):
+        """
+        Guarda el modelo de topic modeling.
+        """
+        try:
+            if not self.topic_model:
+                logger.warning("No hay modelo de topic para guardar")
+                return
+            
+            if filepath is None:
+                filepath = 'backend/ml_models/topic_model.joblib'
+            
+            # Crear directorio si no existe
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            
+            # Guardar modelo
+            joblib.dump(self.topic_model, filepath)
+            logger.info(f"Topic model guardado en {filepath}")
+            
+        except Exception as e:
+            logger.error(f"Error guardando topic model: {str(e)}")
+    
+    def load_topic_model(self, filepath: str = None):
+        """
+        Carga el modelo de topic modeling.
+        """
+        try:
+            if filepath is None:
+                filepath = 'backend/ml_models/topic_model.joblib'
+            
+            if os.path.exists(filepath):
+                self.topic_model = joblib.load(filepath)
+                logger.info(f"Topic model cargado desde {filepath}")
+            else:
+                logger.warning(f"Archivo de modelo no encontrado: {filepath}")
+                
+        except Exception as e:
+            logger.error(f"Error cargando topic model: {str(e)}")
     
     def classify_documents(self, texts: List[str], labels: List[str] = None,
                           test_size: float = 0.2) -> Dict[str, Any]:
@@ -602,7 +711,8 @@ class FinancialTextProcessor:
             
             for name, model in models_to_save.items():
                 if model is not None:
-                    filepath = f"{filepath_prefix}_{name}.joblib"
+                    # Guardar en la ubicación estándar
+                    filepath = f"{filepath_prefix}/nlp_{name}.joblib"
                     joblib.dump(model, filepath)
                     logger.info(f"Modelo {name} guardado en {filepath}")
                     
@@ -620,13 +730,28 @@ class FinancialTextProcessor:
             models_to_load = ['sentiment_model', 'topic_model', 'classifier_model']
             
             for name in models_to_load:
-                filepath = f"{filepath_prefix}_{name}.joblib"
-                try:
-                    model = joblib.load(filepath)
-                    setattr(self, name, model)
-                    logger.info(f"Modelo {name} cargado desde {filepath}")
-                except FileNotFoundError:
-                    logger.warning(f"Archivo de modelo no encontrado: {filepath}")
+                # Buscar en diferentes ubicaciones posibles
+                possible_paths = [
+                    f"{filepath_prefix}/nlp_{name}.joblib",  # backend/ml_models/nlp_sentiment_model.joblib
+                    f"{filepath_prefix}_{name}.joblib",      # backend/ml_models_sentiment_model.joblib (legacy)
+                    f"{filepath_prefix}/{name}.joblib"       # backend/ml_models/sentiment_model.joblib
+                ]
+                
+                model_loaded = False
+                for filepath in possible_paths:
+                    try:
+                        if os.path.exists(filepath):
+                            model = joblib.load(filepath)
+                            setattr(self, name, model)
+                            logger.info(f"Modelo {name} cargado desde {filepath}")
+                            model_loaded = True
+                            break
+                    except Exception as e:
+                        logger.debug(f"No se pudo cargar {filepath}: {str(e)}")
+                        continue
+                
+                if not model_loaded:
+                    logger.warning(f"No se encontró modelo {name} en ninguna ubicación esperada")
                     
         except Exception as e:
             logger.error(f"Error cargando modelos: {str(e)}")

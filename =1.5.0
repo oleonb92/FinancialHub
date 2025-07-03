@@ -1,9 +1,0 @@
-Collecting mypy
-  Downloading mypy-1.16.1-cp311-cp311-macosx_11_0_arm64.whl.metadata (2.1 kB)
-Requirement already satisfied: typing_extensions>=4.6.0 in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (from mypy) (4.13.2)
-Requirement already satisfied: mypy_extensions>=1.0.0 in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (from mypy) (1.1.0)
-Requirement already satisfied: pathspec>=0.9.0 in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (from mypy) (0.12.1)
-Downloading mypy-1.16.1-cp311-cp311-macosx_11_0_arm64.whl (10.0 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.0/10.0 MB 23.7 MB/s eta 0:00:00
-Installing collected packages: mypy
-Successfully installed mypy-1.16.1

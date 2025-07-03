@@ -9,6 +9,8 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.db.models import Q
+import json
+import os
 
 # Importar todos los módulos de ML
 from .fraud_detector import FraudDetector
@@ -25,6 +27,26 @@ from .experimentation.ab_testing import ABTesting
 from .federated.federated_learning import FederatedLearning
 
 logger = logging.getLogger('ai.orchestrator')
+
+CATEGORIES_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../categories_en.json'))
+
+def load_categories_and_subcategories():
+    with open(CATEGORIES_FILE, 'r') as f:
+        data = json.load(f)
+    categories = set()
+    subcategories = set()
+    for entry in data:
+        categories.add(entry['category'])
+        for sub in entry['subcategories']:
+            subcategories.add((entry['category'], sub))
+    return categories, subcategories
+
+CATEGORIES, SUBCATEGORIES = load_categories_and_subcategories()
+
+def validate_category_and_subcategory(category, subcategory):
+    if (category in CATEGORIES and (category, subcategory) in SUBCATEGORIES) or (category in CATEGORIES and not subcategory):
+        return True
+    return False
 
 class AIOrchestrator:
     """

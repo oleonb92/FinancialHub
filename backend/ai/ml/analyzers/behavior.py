@@ -65,7 +65,7 @@ class BehaviorAnalyzer(BaseMLModel):
                     'amount': [float(t.amount) for t in transactions],
                     'day_of_week': [t.date.weekday() for t in transactions],
                     'hour': [t.date.hour for t in transactions],
-                    'category_id': [t.category.id for t in transactions],
+                    'category_id': [t.category.id if t.category else 0 for t in transactions],
                     'merchant_id': [hash(getattr(t, 'merchant', None)) % 1000 if getattr(t, 'merchant', None) else 0 for t in transactions]
                 })
         except (ValueError, AttributeError) as e:
@@ -92,6 +92,17 @@ class BehaviorAnalyzer(BaseMLModel):
             if features.empty:
                 raise ValueError("No valid features extracted from transactions")
             
+            # Filtrar filas con NaN en features esenciales
+            essential_features = ['amount', 'day_of_week', 'hour', 'category_id', 'merchant_id']
+            before = len(features)
+            mask = features[essential_features].notnull().all(axis=1)
+            features = features[mask]
+            after = len(features)
+            if after < before:
+                self.logger.warning(f"Filtradas {before - after} filas con NaN en features esenciales para entrenamiento de comportamiento.")
+            if len(features) == 0:
+                raise ValueError("No valid data after filtering NaNs in essential features.")
+            
             # Scale features
             scaled_features = self.scaler.fit_transform(features)
             
@@ -103,7 +114,7 @@ class BehaviorAnalyzer(BaseMLModel):
             # Save the trained model
             self.save()
             
-            self.logger.info(f"Model trained on {len(transactions)} transactions")
+            self.logger.info(f"Model trained on {len(features)} transactions")
             
         except Exception as e:
             self.logger.error(f"Error training model: {str(e)}")
@@ -264,37 +275,64 @@ class BehaviorAnalyzer(BaseMLModel):
             for hour, count in hour_counts.items()
         }
     
-    def _analyze_spending_trend(self, transactions: List[Transaction]) -> Dict[str, float]:
+    def _analyze_spending_trend(self, transactions: Union[List[Transaction], List[Dict]]) -> Dict[str, float]:
         """
         Analyze spending trend over time.
         
         Args:
-            transactions: List of Transaction objects
+            transactions: List of Transaction objects or dictionaries
             
         Returns:
             dict: Dictionary containing trend analysis
         """
-        # Group transactions by date
-        daily_amounts = pd.DataFrame({
-            'date': [t.date for t in transactions],
-            'amount': [float(t.amount) for t in transactions]
-        }).groupby('date')['amount'].sum().reset_index()
-        
-        # Calculate trend
-        if len(daily_amounts) > 1:
-            trend = np.polyfit(
-                range(len(daily_amounts)),
-                daily_amounts['amount'],
-                deg=1
-            )[0]
-        else:
-            trend = 0
-        
-        return {
-            'trend_coefficient': float(trend),
-            'trend_direction': 'increasing' if trend > 0 else 'decreasing',
-            'daily_average': float(daily_amounts['amount'].mean())
-        }
+        try:
+            # Handle both Transaction objects and dictionaries
+            if transactions and isinstance(transactions[0], dict):
+                # Handle dictionary format
+                daily_amounts = pd.DataFrame({
+                    'date': [t.get('date') for t in transactions if t.get('date')],
+                    'amount': [float(t.get('amount', 0)) for t in transactions if t.get('date')]
+                })
+            else:
+                # Handle Transaction objects
+                daily_amounts = pd.DataFrame({
+                    'date': [t.date for t in transactions],
+                    'amount': [float(t.amount) for t in transactions]
+                })
+            
+            if daily_amounts.empty:
+                return {
+                    'trend_coefficient': 0.0,
+                    'trend_direction': 'stable',
+                    'daily_average': 0.0
+                }
+            
+            # Group by date and sum amounts
+            daily_amounts = daily_amounts.groupby('date')['amount'].sum().reset_index()
+            
+            # Calculate trend
+            if len(daily_amounts) > 1:
+                trend = np.polyfit(
+                    range(len(daily_amounts)),
+                    daily_amounts['amount'],
+                    deg=1
+                )[0]
+            else:
+                trend = 0
+            
+            return {
+                'trend_coefficient': float(trend),
+                'trend_direction': 'increasing' if trend > 0 else 'decreasing',
+                'daily_average': float(daily_amounts['amount'].mean())
+            }
+                
+        except Exception as e:
+            self.logger.error(f"Error analyzing spending trend: {str(e)}")
+            return {
+                'trend_coefficient': 0.0,
+                'trend_direction': 'stable',
+                'daily_average': 0.0
+            }
     
     def _analyze_category_distribution(self, features: pd.DataFrame) -> Dict[int, float]:
         """

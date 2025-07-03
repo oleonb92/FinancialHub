@@ -1,1 +1,76 @@
-{}
+{
+  "expense_predictor": {
+    "20250625_150319": {
+      "timestamp": "2025-06-25T15:03:19.373566",
+      "metrics": {
+        "model_name": "expense_predictor",
+        "evaluation_timestamp": "2025-06-25T15:03:19.370514+00:00",
+        "status": "evaluated",
+        "basic_metrics": {
+          "accuracy": 0.85,
+          "precision": 0.82,
+          "recall": 0.88,
+          "f1_score": 0.85
+        }
+      }
+    },
+    "20250627_150819": {
+      "timestamp": "2025-06-27T15:08:19.521784",
+      "metrics": {
+        "model_name": "expense_predictor",
+        "evaluation_timestamp": "2025-06-27T15:08:19.519028+00:00",
+        "status": "evaluated",
+        "basic_metrics": {
+          "accuracy": 0.85,
+          "precision": 0.82,
+          "recall": 0.88,
+          "f1_score": 0.85
+        }
+      }
+    }
+  },
+  "behavior_analyzer": {
+    "20250625_150319": {
+      "timestamp": "2025-06-25T15:03:19.536402",
+      "metrics": {
+        "model_name": "behavior_analyzer",
+        "evaluation_timestamp": "2025-06-25T15:03:19.534707+00:00",
+        "status": "evaluated",
+        "basic_metrics": {
+          "accuracy": 0.85,
+          "precision": 0.82,
+          "recall": 0.88,
+          "f1_score": 0.85
+        }
+      }
+    },
+    "20250627_150819": {
+      "timestamp": "2025-06-27T15:08:19.686551",
+      "metrics": {
+        "model_name": "behavior_analyzer",
+        "evaluation_timestamp": "2025-06-27T15:08:19.685818+00:00",
+        "status": "evaluated",
+        "basic_metrics": {
+          "accuracy": 0.85,
+          "precision": 0.82,
+          "recall": 0.88,
+          "f1_score": 0.85
+        }
+      }
+    },
+    "20250702_142356": {
+      "timestamp": "2025-07-02T14:23:56.188744",
+      "metrics": {
+        "model_name": "behavior_analyzer",
+        "evaluation_timestamp": "2025-07-02T14:23:56.187612+00:00",
+        "status": "evaluated",
+        "basic_metrics": {
+          "accuracy": 0.85,
+          "precision": 0.82,
+          "recall": 0.88,
+          "f1_score": 0.85
+        }
+      }
+    }
+  }
+}

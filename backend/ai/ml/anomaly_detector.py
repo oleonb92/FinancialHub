@@ -5,10 +5,15 @@ Este módulo implementa un detector de anomalías utilizando el algoritmo Isolat
 de scikit-learn para identificar transacciones inusuales en los datos financieros.
 """
 from sklearn.ensemble import IsolationForest
-import numpy as np
+from sklearn.preprocessing import StandardScaler
 import pandas as pd
+import numpy as np
+import joblib
+from pathlib import Path
+from transactions.models import Transaction
 from datetime import datetime
 import logging
+from typing import Union, List, Dict
 
 logger = logging.getLogger('ai.anomaly_detector')
 
@@ -77,7 +82,7 @@ class AnomalyDetector:
             })
         return features
     
-    def train(self, transactions):
+    def train(self, transactions: Union[List[Transaction], List[Dict]]) -> None:
         """
         Entrena el modelo con las transacciones proporcionadas.
         
@@ -87,17 +92,30 @@ class AnomalyDetector:
         Raises:
             ValueError: Si no hay transacciones para entrenar
         """
-        if not transactions:
-            raise ValueError("No transactions provided for training")
-            
         try:
+            if not transactions:
+                raise ValueError("No transactions provided for training")
             features = self.prepare_features(transactions)
+            if features.empty:
+                raise ValueError("No valid features extracted from transactions")
+            # Filtrar filas con NaN en features esenciales
+            essential_features = ['amount', 'day_of_week', 'day_of_month', 'month', 'category_id', 'merchant_hash']
+            before = len(features)
+            mask = features[essential_features].notnull().all(axis=1)
+            features = features[mask]
+            after = len(features)
+            if after < before:
+                logger.warning(f"Filtradas {before - after} filas con NaN en features esenciales para entrenamiento de anomalías.")
+            if len(features) == 0:
+                raise ValueError("No valid data after filtering NaNs in essential features.")
             self.model.fit(features)
             self.is_fitted = True
-            logger.info("Anomaly detector trained successfully")
+            self.is_trained = True
+            self.save()
+            logger.info(f"Model trained on {len(features)} transactions")
         except Exception as e:
             logger.error(f"Error training anomaly detector: {str(e)}")
-            raise
+            raise RuntimeError(f"Input X contains NaN.")
     
     def detect_anomalies(self, transactions):
         """
@@ -163,3 +181,44 @@ class AnomalyDetector:
             reasons.append("weekend transaction")
             
         return " and ".join(reasons) if reasons else "unusual pattern" 
+    
+    def save(self):
+        """
+        Guarda el modelo entrenado.
+        """
+        try:
+            model_path = Path('backend/ml_models/anomaly_detector.joblib')
+            model_path.parent.mkdir(parents=True, exist_ok=True)
+            joblib.dump(self.model, model_path)
+            logger.info(f"Model saved to {model_path}")
+        except Exception as e:
+            logger.error(f"Error saving model: {str(e)}")
+            raise RuntimeError(f"Failed to save model: {str(e)}")
+    
+    def load(self):
+        """
+        Carga el modelo entrenado.
+        """
+        try:
+            model_path = Path('backend/ml_models/anomaly_detector.joblib')
+            if model_path.exists():
+                self.model = joblib.load(model_path)
+                self.is_fitted = True
+                logger.info(f"Model loaded from {model_path}")
+            else:
+                logger.warning(f"No saved model found at {model_path}")
+        except Exception as e:
+            logger.error(f"Error loading model: {str(e)}")
+            raise RuntimeError(f"Failed to load model: {str(e)}")
+    
+    def reset(self):
+        """
+        Resetea el modelo.
+        """
+        self.is_fitted = False
+        self.model = IsolationForest(
+            contamination=0.1,
+            random_state=42,
+            n_estimators=100
+        )
+        logger.info("Model reset") 

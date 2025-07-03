@@ -1,0 +1,19 @@
+{% if language == 'es' %}
+💰 **Plan de Ahorro Personalizado**
+Objetivo: {{ formatted_target }}/mes
+Gastos actuales: {{ formatted_expenses }}/mes
+
+**Recomendaciones:**
+{% for rec in recommendations %}
+- {{ rec.category }}: reducir {{ rec.currency }}{{ rec.amount:,.0f }} ({{ rec.percentage }}%)
+{% endfor %}
+{% else %}
+💰 **Personalized Savings Plan**
+Target: {{ formatted_target }}/month
+Current expenses: {{ formatted_expenses }}/month
+
+**Recommendations:**
+{% for rec in recommendations %}
+- {{ rec.category }}: reduce {{ rec.currency }}{{ rec.amount:,.0f }} ({{ rec.percentage }}%)
+{% endfor %}
+{% endif %}

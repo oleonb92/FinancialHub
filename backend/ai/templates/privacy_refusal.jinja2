@@ -1,0 +1,13 @@
+{% if language == 'es' %}
+🚫 **Solicitud Bloqueada**
+Razón: {{ reason }}
+{% if suggested_action %}
+Sugerencia: {{ suggested_action }}
+{% endif %}
+{% else %}
+🚫 **Request Blocked**
+Reason: {{ reason }}
+{% if suggested_action %}
+Suggestion: {{ suggested_action }}
+{% endif %}
+{% endif %}

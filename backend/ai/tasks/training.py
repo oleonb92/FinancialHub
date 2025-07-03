@@ -1,229 +1,200 @@
 """
-Tareas de entrenamiento de modelos ML.
-
-Este módulo proporciona tareas Celery para:
-- Entrenamiento periódico de modelos
-- Evaluación de rendimiento
-- Actualización de versiones
+Celery tasks for AI model training and evaluation.
 """
 from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
-from ..ml.utils.metrics import ModelMetrics
-from ..ml.utils.versioning.model_versioning import ModelVersioning
-from ..ml.utils.monitoring.resource_monitor import ResourceMonitor
-from ..services import AIService
-from transactions.models import Transaction
 import logging
-from typing import Dict, Any
+from ai.services import AIService
+from transactions.models import Transaction
+from django.db.models import Q
 
-logger = logging.getLogger('ai.tasks')
+logger = logging.getLogger(__name__)
 
-@shared_task
-def train_models():
+@shared_task(bind=True, name='ai.tasks.training.train_models')
+def train_models(self):
     """
-    Tarea periódica para entrenar modelos.
-    
-    Returns:
-        Dict: Resultados del entrenamiento
+    Celery task to train all AI models.
     """
     try:
-        # Inicializar servicios
+        logger.info("[AI][TASK] Iniciando entrenamiento de modelos...")
+        
         ai_service = AIService()
-        versioning = ModelVersioning()
-        monitor = ResourceMonitor()
+        result = ai_service.train_models()
         
-        # Verificar recursos antes de entrenar
-        system_metrics = monitor.collect_metrics()
-        if system_metrics['cpu']['percent'] > 80 or system_metrics['memory']['percent'] > 80:
-            logger.warning("Recursos del sistema altos, posponiendo entrenamiento")
-            return {
-                'status': 'postponed',
-                'reason': 'high_system_load',
-                'metrics': system_metrics
-            }
-            
-        # Obtener datos de entrenamiento
-        transactions = Transaction.objects.filter(
-            created_at__gte=timezone.now() - timedelta(days=90)
-        ).order_by('-date')
+        logger.info(f"[AI][TASK] Entrenamiento completado: {result}")
         
-        if not transactions:
-            logger.warning("No hay suficientes datos para entrenar")
-            return {
-                'status': 'skipped',
-                'reason': 'insufficient_data'
-            }
-            
-        # Entrenar modelos
-        results = {}
-        model_names = ['transaction_classifier', 'expense_predictor', 'behavior_analyzer']
-        
-        for model_name in model_names:
-            try:
-                # Crear métricas específicas para cada modelo
-                model_metrics = ModelMetrics(model_name)
-                
-                # Obtener el modelo del servicio de IA
-                if model_name == 'transaction_classifier':
-                    model = ai_service.transaction_classifier
-                elif model_name == 'expense_predictor':
-                    model = ai_service.expense_predictor
-                elif model_name == 'behavior_analyzer':
-                    model = ai_service.behavior_analyzer
-                else:
-                    continue
-                
-                # Entrenar modelo
-                model.train(transactions)
-                
-                # Evaluar rendimiento
-                metrics_result = model_metrics.evaluate_model(model_name, model)
-                
-                # Guardar nueva versión
-                version = versioning.save_model_version(
-                    model_name,
-                    model,
-                    metrics_result
-                )
-                
-                results[model_name] = {
-                    'status': 'success',
-                    'version': version,
-                    'metrics': metrics_result
-                }
-                
-            except Exception as e:
-                logger.error(f"Error entrenando modelo {model_name}: {str(e)}")
-                results[model_name] = {
-                    'status': 'error',
-                    'error': str(e)
-                }
-                
         return {
             'status': 'success',
             'timestamp': timezone.now().isoformat(),
-            'results': results
+            'results': result
         }
         
     except Exception as e:
-        logger.error(f"Error en tarea de entrenamiento: {str(e)}")
-        raise
-        
-@shared_task
-def evaluate_models():
+        logger.error(f"[AI][TASK] Error en train_models: {str(e)}", exc_info=True)
+        return {
+            'status': 'error',
+            'error': str(e),
+            'timestamp': timezone.now().isoformat()
+        }
+
+@shared_task(bind=True, name='ai.tasks.training.evaluate_models')
+def evaluate_models(self, model_name=None):
     """
-    Tarea periódica para evaluar modelos.
+    Celery task to evaluate AI model performance.
     
-    Returns:
-        Dict: Resultados de la evaluación
+    Args:
+        model_name: Optional specific model to evaluate
     """
     try:
+        logger.info(f"[AI][TASK] Iniciando evaluación de modelos: {model_name or 'todos'}")
+        
         ai_service = AIService()
-        versioning = ModelVersioning()
         
-        # Obtener datos de prueba
-        transactions = Transaction.objects.filter(
-            created_at__gte=timezone.now() - timedelta(days=30)
-        ).order_by('-date')
-        
-        if not transactions:
-            return {
-                'status': 'skipped',
-                'reason': 'insufficient_data'
+        if model_name:
+            # Evaluate specific model
+            metrics = ai_service.get_model_metrics(model_name)
+            result = {
+                'model': model_name,
+                'metrics': metrics
             }
+        else:
+            # Evaluate all models
+            models = ['transaction_classifier', 'expense_predictor', 'behavior_analyzer']
+            result = {}
             
-        # Evaluar cada modelo
-        results = {}
-        for model_name, model in ai_service.get_models().items():
-            try:
-                # Crear métricas específicas para cada modelo
-                model_metrics = ModelMetrics(model_name)
-                
-                # Cargar última versión
-                model = versioning.load_model_version(model_name)
-                
-                # Evaluar rendimiento
-                metrics_result = model_metrics.evaluate_model(model_name, model)
-                
-                results[model_name] = {
-                    'status': 'success',
-                    'metrics': metrics_result
-                }
-                
-            except Exception as e:
-                logger.error(f"Error evaluando modelo {model_name}: {str(e)}")
-                results[model_name] = {
-                    'status': 'error',
-                    'error': str(e)
-                }
-                
+            for model in models:
+                try:
+                    metrics = ai_service.get_model_metrics(model)
+                    result[model] = metrics
+                except Exception as e:
+                    logger.error(f"[AI][TASK] Error evaluando modelo {model}: {str(e)}")
+                    result[model] = {'status': 'error', 'error': str(e)}
+        
+        logger.info(f"[AI][TASK] Evaluación completada: {result}")
+        
         return {
             'status': 'success',
             'timestamp': timezone.now().isoformat(),
-            'results': results
+            'results': result
         }
         
     except Exception as e:
-        logger.error(f"Error en tarea de evaluación: {str(e)}")
-        raise
-        
-@shared_task
-def cleanup_old_versions():
+        logger.error(f"[AI][TASK] Error en evaluate_models: {str(e)}", exc_info=True)
+        return {
+            'status': 'error',
+            'error': str(e),
+            'timestamp': timezone.now().isoformat()
+        }
+
+@shared_task(bind=True, name='ai.tasks.training.cleanup_old_versions')
+def cleanup_old_versions(self, days_to_keep=30):
     """
-    Tarea periódica para limpiar versiones antiguas de modelos.
+    Celery task to cleanup old model versions.
     
-    Returns:
-        Dict: Resultados de la limpieza
+    Args:
+        days_to_keep: Number of days to keep model versions
     """
     try:
-        versioning = ModelVersioning()
+        logger.info(f"[AI][TASK] Iniciando limpieza de versiones antiguas (mantener {days_to_keep} días)")
         
-        # Obtener todos los modelos
-        models = versioning.get_all_models()
+        ai_service = AIService()
         
-        results = {}
-        for model_name in models:
-            try:
-                # Obtener versiones
-                versions = versioning.get_model_versions(model_name)
-                
-                # Mantener solo las últimas 5 versiones
-                if len(versions) > 5:
-                    # Ordenar versiones por fecha
-                    sorted_versions = sorted(
-                        versions.keys(),
-                        key=lambda x: versions[x]['timestamp'],
-                        reverse=True
-                    )
-                    
-                    # Eliminar versiones antiguas
-                    for version in sorted_versions[5:]:
-                        versioning.delete_model_version(model_name, version)
-                        
-                    results[model_name] = {
-                        'status': 'success',
-                        'versions_removed': len(sorted_versions) - 5
-                    }
-                else:
-                    results[model_name] = {
-                        'status': 'skipped',
-                        'reason': 'insufficient_versions'
-                    }
-                    
-            except Exception as e:
-                logger.error(f"Error limpiando versiones de {model_name}: {str(e)}")
-                results[model_name] = {
-                    'status': 'error',
-                    'error': str(e)
-                }
-                
+        # Get memory status before cleanup
+        memory_before = ai_service.get_memory_status()
+        
+        # Perform cleanup
+        cleanup_result = ai_service.cleanup_memory(force=True)
+        
+        # Get memory status after cleanup
+        memory_after = ai_service.get_memory_status()
+        
+        result = {
+            'cleanup_result': cleanup_result,
+            'memory_before': memory_before,
+            'memory_after': memory_after,
+            'days_kept': days_to_keep
+        }
+        
+        logger.info(f"[AI][TASK] Limpieza completada: {result}")
+        
         return {
             'status': 'success',
             'timestamp': timezone.now().isoformat(),
-            'results': results
+            'results': result
         }
         
     except Exception as e:
-        logger.error(f"Error en tarea de limpieza: {str(e)}")
-        raise 
+        logger.error(f"[AI][TASK] Error en cleanup_old_versions: {str(e)}", exc_info=True)
+        return {
+            'status': 'error',
+            'error': str(e),
+            'timestamp': timezone.now().isoformat()
+        }
+
+@shared_task(bind=True, name='ai.tasks.training.retrain_low_performance_models')
+def retrain_low_performance_models(self):
+    """
+    Celery task to automatically retrain models with low performance.
+    """
+    try:
+        logger.info("[AI][TASK] Iniciando retraining de modelos con bajo rendimiento...")
+        
+        ai_service = AIService()
+        result = ai_service.auto_retrain_low_performance_models()
+        
+        logger.info(f"[AI][TASK] Retraining completado: {result}")
+        
+        return {
+            'status': 'success',
+            'timestamp': timezone.now().isoformat(),
+            'results': result
+        }
+        
+    except Exception as e:
+        logger.error(f"[AI][TASK] Error en retrain_low_performance_models: {str(e)}", exc_info=True)
+        return {
+            'status': 'error',
+            'error': str(e),
+            'timestamp': timezone.now().isoformat()
+        }
+
+@shared_task(bind=True, name='ai.tasks.training.analyze_transaction_ai')
+def analyze_transaction_ai(self, transaction_id):
+    """
+    Celery task to analyze a single transaction with AI.
+    
+    Args:
+        transaction_id: ID of the transaction to analyze
+    """
+    try:
+        logger.info(f"[AI][TASK] Analizando transacción {transaction_id}...")
+        
+        transaction = Transaction.objects.get(id=transaction_id)
+        ai_service = AIService()
+        
+        result = ai_service.analyze_transaction(transaction)
+        
+        logger.info(f"[AI][TASK] Análisis completado para transacción {transaction_id}")
+        
+        return {
+            'status': 'success',
+            'transaction_id': transaction_id,
+            'timestamp': timezone.now().isoformat(),
+            'results': result
+        }
+        
+    except Transaction.DoesNotExist:
+        logger.error(f"[AI][TASK] Transacción {transaction_id} no encontrada")
+        return {
+            'status': 'error',
+            'error': f'Transaction {transaction_id} not found',
+            'timestamp': timezone.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"[AI][TASK] Error analizando transacción {transaction_id}: {str(e)}", exc_info=True)
+        return {
+            'status': 'error',
+            'error': str(e),
+            'timestamp': timezone.now().isoformat()
+        } 

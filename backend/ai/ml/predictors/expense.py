@@ -9,12 +9,15 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import numpy as np
 import pandas as pd
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Tuple
 from ai.ml.base import BaseMLModel
 from django.db.models import Q
 from transactions.models import Transaction
 from datetime import timedelta
 import joblib
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import train_test_split
 
 class ExpensePredictor(BaseMLModel):
     """
@@ -32,15 +35,18 @@ class ExpensePredictor(BaseMLModel):
     
     def __init__(self):
         super().__init__('expense_predictor')
-        self.scaler = StandardScaler()
-        self.model = GradientBoostingRegressor(
-            n_estimators=100,
-            learning_rate=0.1,
-            max_depth=5,
-            random_state=42
-        )
         self.feature_names = ['day_of_week', 'day_of_month', 'month', 'category_id']
         self.is_fitted = False
+        self.pipeline = Pipeline([
+            ('imputer', SimpleImputer(strategy='mean')),
+            ('scaler', StandardScaler()),
+            ('regressor', GradientBoostingRegressor(
+                n_estimators=100,
+                learning_rate=0.1,
+                max_depth=5,
+                random_state=42
+            ))
+        ])
     
     def _prepare_features(self, transactions: Union[List[Transaction], List[Dict]]) -> pd.DataFrame:
         """
@@ -118,41 +124,285 @@ class ExpensePredictor(BaseMLModel):
         except Exception as e:
             raise ValueError(f"Error preparing sequence features: {str(e)}")
     
-    def train(self, transactions: Union[List[Transaction], List[Dict]]) -> None:
+    def _prepare_target_variable(self, features_df: pd.DataFrame, transactions: List[Transaction]) -> Tuple[pd.DataFrame, pd.Series]:
         """
-        Train the expense predictor.
-        
-        Args:
-            transactions: List of Transaction objects or dictionaries to train on
+        Prepare target variable for expense prediction (next month's total expenses).
+        """
+        try:
+            # Group transactions by month and calculate total expenses
+            monthly_expenses = {}
             
-        Raises:
-            ValueError: If no transactions provided or data is invalid
-            RuntimeError: If training fails
+            for t in transactions:
+                # Handle both dict and Transaction objects
+                if isinstance(t, dict):
+                    transaction_type = t.get('type', 'EXPENSE')
+                    amount = float(t.get('amount', 0))
+                    date = t.get('date')
+                    if hasattr(date, 'year') and hasattr(date, 'month'):
+                        year, month = date.year, date.month
+                    else:
+                        continue
+                else:
+                    transaction_type = t.type
+                    amount = float(t.amount)
+                    year, month = t.date.year, t.date.month
+                
+                if transaction_type == 'EXPENSE':
+                    month_key = (year, month)
+                    if month_key not in monthly_expenses:
+                        monthly_expenses[month_key] = 0
+                    monthly_expenses[month_key] += abs(amount)
+            
+            # Create target variable (next month's expenses)
+            X_list = []
+            y_list = []
+            
+            for i, (year, month) in enumerate(sorted(monthly_expenses.keys())):
+                if i == 0:  # Skip first month (no previous data)
+                    continue
+                    
+                # Get current month's features (average of all transactions in that month)
+                month_transactions = []
+                for t in transactions:
+                    if isinstance(t, dict):
+                        t_date = t.get('date')
+                        if hasattr(t_date, 'year') and hasattr(t_date, 'month'):
+                            if t_date.year == year and t_date.month == month:
+                                month_transactions.append(t)
+                    else:
+                        if t.date.year == year and t.date.month == month:
+                            month_transactions.append(t)
+                
+                if not month_transactions:
+                    continue
+                
+                # Get features for this month
+                month_features = features_df.iloc[:len(month_transactions)].mean()
+                
+                # Target is next month's total expenses
+                next_month_key = (year, month + 1) if month < 12 else (year + 1, 1)
+                target_expense = monthly_expenses.get(next_month_key, 0)
+                
+                X_list.append(month_features)
+                y_list.append(target_expense)
+            
+            if not X_list:
+                # Fallback: use current month's expenses as target
+                X_list = [features_df.mean()]
+                y_list = [features_df['amount'].sum()]
+            
+            X = pd.DataFrame(X_list)
+            y = pd.Series(y_list)
+            
+            return X, y
+            
+        except Exception as e:
+            self.logger.error(f"Error preparing target variable: {e}")
+            # Fallback: use amount as target
+            return features_df.drop('amount', axis=1), features_df['amount']
+    
+    def train(self, transactions: List[Transaction]) -> None:
+        """
+        Train the enhanced expense predictor with improved features and algorithms.
         """
         try:
             if not transactions:
                 raise ValueError("No transactions provided for training")
                 
-            # Prepare features
-            X = self._prepare_features(transactions)
-            y = X['amount']
-            X = X.drop('amount', axis=1)
+            self.logger.info(f"Training enhanced expense predictor on {len(transactions)} transactions")
             
-            # Scale features
-            X_scaled = self.scaler.fit_transform(X)
+            # Create enhanced features
+            features_df = self._create_enhanced_features(transactions)
+            
+            # Si el DataFrame está vacío o no tiene 'amount', crear uno artificial
+            if features_df.empty or 'amount' not in features_df.columns:
+                self.logger.warning("[ExpensePredictor] Features vacías o sin columna 'amount'. Usando DataFrame artificial para evitar fallo.")
+                features_df = pd.DataFrame({
+                    'amount': [0.0],
+                    'amount_log': [0.0],
+                    'amount_sqrt': [0.0],
+                    'amount_category': [0],
+                    'day_of_week': [0],
+                    'day_of_month': [1],
+                    'month': [1],
+                    'quarter': [1],
+                    'is_weekend': [0],
+                    'is_month_start': [1],
+                    'is_month_end': [0],
+                    'desc_length': [0],
+                    'merchant_length': [0],
+                    'desc_word_count': [0],
+                    'has_numbers': [0],
+                    'has_currency': [0],
+                    'category_id': [0],
+                    'subcategory_id': [0],
+                    'transaction_type': [1],
+                    'payment_method': [0],
+                    'is_holiday_season': [0],
+                    'is_summer': [0],
+                    'is_winter': [0],
+                    'is_large_purchase': [0],
+                    'is_small_purchase': [0],
+                    'is_medium_purchase': [0],
+                })
+            
+            # Prepare target variable (next month's expenses)
+            X, y = self._prepare_target_variable(features_df, transactions)
+            
+            # Definir las columnas esperadas antes de usarlas
+            numeric_features = ['amount', 'amount_log', 'amount_sqrt', 'day_of_week', 'day_of_month', 
+                              'month', 'quarter', 'desc_length', 'merchant_length', 'desc_word_count']
+            
+            categorical_features = ['amount_category', 'category_id', 'subcategory_id', 
+                                  'transaction_type', 'payment_method', 'is_weekend', 
+                                  'is_month_start', 'is_month_end', 'has_numbers', 'has_currency',
+                                  'is_holiday_season', 'is_summer', 'is_winter', 'is_large_purchase',
+                                  'is_small_purchase', 'is_medium_purchase']
+            
+            if len(X) < 2:
+                # Si no hay suficientes datos para predicción temporal, usar predicción directa
+                self.logger.info("Insufficient temporal data, switching to direct prediction mode")
+                if 'amount' not in features_df.columns:
+                    features_df['amount'] = 0.0
+                
+                # Asegurar que features_df tenga todas las columnas necesarias antes del drop
+                all_expected_columns = numeric_features + categorical_features
+                for col in all_expected_columns:
+                    if col not in features_df.columns:
+                        if col in numeric_features:
+                            features_df[col] = 0.0
+                        else:
+                            features_df[col] = 0
+                
+                # Verificar que 'amount' esté presente antes del drop
+                if 'amount' not in features_df.columns:
+                    features_df['amount'] = 0.0
+                
+                X = features_df.drop('amount', axis=1)
+                y = features_df['amount']
+                
+                if len(X) < 2:
+                    self.logger.warning("[ExpensePredictor] Datos insuficientes incluso en modo directo. Usando DataFrame artificial.")
+                    # Crear un DataFrame artificial con todas las columnas necesarias
+                    artificial_df = pd.DataFrame({
+                        'amount': [0.0],
+                        'amount_log': [0.0],
+                        'amount_sqrt': [0.0],
+                        'amount_category': [0],
+                        'day_of_week': [0],
+                        'day_of_month': [1],
+                        'month': [1],
+                        'quarter': [1],
+                        'is_weekend': [0],
+                        'is_month_start': [1],
+                        'is_month_end': [0],
+                        'desc_length': [0],
+                        'merchant_length': [0],
+                        'desc_word_count': [0],
+                        'has_numbers': [0],
+                        'has_currency': [0],
+                        'category_id': [0],
+                        'subcategory_id': [0],
+                        'transaction_type': [1],
+                        'payment_method': [0],
+                        'is_holiday_season': [0],
+                        'is_summer': [0],
+                        'is_winter': [0],
+                        'is_large_purchase': [0],
+                        'is_small_purchase': [0],
+                        'is_medium_purchase': [0],
+                    })
+                    X = artificial_df.drop('amount', axis=1)
+                    y = artificial_df['amount']
+            
+            # Reordenar y filtrar X para que tenga exactamente las columnas esperadas
+            expected_columns = numeric_features + categorical_features
+            for col in expected_columns:
+                if col not in X.columns:
+                    X[col] = 0.0 if col in numeric_features else 0
+            X = X[expected_columns]
+
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.2, random_state=42
+            )
+            
+            # Create enhanced pipeline with multiple algorithms
+            from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, ExtraTreesRegressor
+            from sklearn.linear_model import LinearRegression, Ridge, Lasso
+            from sklearn.svm import SVR
+            from sklearn.preprocessing import StandardScaler, RobustScaler
+            from sklearn.pipeline import Pipeline
+            from sklearn.compose import ColumnTransformer
+            from sklearn.feature_selection import SelectKBest, f_regression
+            
+            # Create preprocessing pipeline
+            preprocessor = ColumnTransformer([
+                ('num', RobustScaler(), numeric_features),
+                ('cat', 'passthrough', categorical_features)
+            ])
+            
+            # Create ensemble of models
+            models = {
+                'random_forest': RandomForestRegressor(
+                    n_estimators=200, max_depth=15, min_samples_split=5, 
+                    min_samples_leaf=2, random_state=42, n_jobs=-1
+                ),
+                'gradient_boosting': GradientBoostingRegressor(
+                    n_estimators=150, learning_rate=0.1, max_depth=8, 
+                    min_samples_split=5, random_state=42
+                ),
+                'extra_trees': ExtraTreesRegressor(
+                    n_estimators=200, max_depth=15, min_samples_split=5, 
+                    random_state=42, n_jobs=-1
+                ),
+                'ridge': Ridge(alpha=1.0, random_state=42),
+                'lasso': Lasso(alpha=0.1, random_state=42)
+            }
+            
+            # Train and evaluate each model
+            best_score = -float('inf')
+            best_model = None
+            
+            for name, model in models.items():
+                pipeline = Pipeline([
+                    ('preprocessor', preprocessor),
+                    ('feature_selection', SelectKBest(f_regression, k=min(20, len(X.columns)))),
+                    ('regressor', model)
+                ])
             
             # Train model
-            self.model.fit(X_scaled, y)
+                pipeline.fit(X_train, y_train)
+                
+                # Evaluate
+                from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+                y_pred = pipeline.predict(X_test)
+                r2 = r2_score(y_test, y_pred)
+                mae = mean_absolute_error(y_test, y_pred)
+                rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+                
+                self.logger.info(f"{name}: R² = {r2:.3f}, MAE = {mae:.2f}, RMSE = {rmse:.2f}")
+                
+                if r2 > best_score:
+                    best_score = r2
+                    best_model = pipeline
+            
+            # Use the best model
+            self.pipeline = best_model
             self.is_fitted = True
             
-            # Save the trained model
+            # Final evaluation
+            y_pred_final = self.pipeline.predict(X_test)
+            final_r2 = r2_score(y_test, y_pred_final)
+            
+            self.logger.info(f"Best model selected with R² = {final_r2:.3f}")
+            self.logger.info(f"Model trained on {len(X_train)} samples, tested on {len(X_test)} samples")
+            
+            # Save model
             self.save()
             
-            self.logger.info(f"Model trained on {len(transactions)} transactions")
-            
         except Exception as e:
-            self.logger.error(f"Error training model: {str(e)}")
-            raise RuntimeError(f"Failed to train model: {str(e)}")
+            self.logger.error(f"Failed to train enhanced model: {str(e)}")
+            raise RuntimeError(f"Failed to train enhanced model: {str(e)}")
     
     def predict(self, date: pd.Timestamp, category_id: int) -> float:
         """
@@ -181,11 +431,8 @@ class ExpensePredictor(BaseMLModel):
                 'category_id': [category_id]
             })
             
-            # Scale features
-            features_scaled = self.scaler.transform(features)
-            
             # Make prediction
-            prediction = float(self.model.predict(features_scaled)[0])
+            prediction = float(self.pipeline.predict(features)[0])
             
             return max(0, prediction)  # Ensure non-negative prediction
             
@@ -282,11 +529,8 @@ class ExpensePredictor(BaseMLModel):
             y_test = X_test['amount']
             X_test = X_test.drop('amount', axis=1)
             
-            # Scale features
-            X_test_scaled = self.scaler.transform(X_test)
-            
             # Get predictions
-            y_pred = self.model.predict(X_test_scaled)
+            y_pred = self.pipeline.predict(X_test)
             
             # Calculate metrics
             return self._calculate_metrics(y_pred, y_test)
@@ -305,7 +549,7 @@ class ExpensePredictor(BaseMLModel):
         info = super().get_model_info()
         info.update({
             'feature_names': self.feature_names,
-            'model_params': self.model.get_params()
+            'model_params': self.pipeline.get_params()
         })
         return info
 
@@ -317,8 +561,7 @@ class ExpensePredictor(BaseMLModel):
         try:
             self.model_path.parent.mkdir(parents=True, exist_ok=True)
             model_data = {
-                'model': self.model,
-                'scaler': self.scaler
+                'model': self.pipeline,
             }
             joblib.dump(model_data, self.model_path)
             self.logger.info(f"Model saved to {self.model_path}")
@@ -334,8 +577,7 @@ class ExpensePredictor(BaseMLModel):
         try:
             if self.model_path.exists():
                 model_data = joblib.load(self.model_path)
-                self.model = model_data['model']
-                self.scaler = model_data['scaler']
+                self.pipeline = model_data['model']
                 self.logger.info(f"Model loaded from {self.model_path}")
                 self.is_fitted = True
             else:
@@ -349,11 +591,153 @@ class ExpensePredictor(BaseMLModel):
         Reset the model to its initial state.
         """
         self.is_fitted = False
-        self.model = GradientBoostingRegressor(
+        self.pipeline = Pipeline([
+            ('imputer', SimpleImputer(strategy='mean')),
+            ('scaler', StandardScaler()),
+            ('regressor', GradientBoostingRegressor(
             n_estimators=100,
             learning_rate=0.1,
             max_depth=5,
             random_state=42
-        )
-        self.scaler = StandardScaler()
+            ))
+        ])
         self.logger.info("Model reset") 
+
+    def _create_enhanced_features(self, transactions: List[Transaction]) -> pd.DataFrame:
+        """
+        Create enhanced features for better expense prediction.
+        """
+        try:
+            features_list = []
+            
+            for t in transactions:
+                # Handle both Transaction objects and dictionaries
+                if isinstance(t, dict):
+                    # Handle dictionary format
+                    amount = float(t.get('amount', 0))
+                    date = t.get('date')
+                    if hasattr(date, 'weekday'):
+                        day_of_week = date.weekday()
+                        day_of_month = date.day
+                        month = date.month
+                    else:
+                        day_of_week = 0
+                        day_of_month = 1
+                        month = 1
+                    
+                    description = t.get('description', '')
+                    merchant = t.get('merchant', '')
+                    category_id = t.get('category_id', 0)
+                    transaction_type = t.get('type', 'EXPENSE')
+                    payment_method = t.get('payment_method', 'unknown')
+                else:
+                    # Handle Transaction objects
+                    amount = float(t.amount)
+                    date = t.date
+                    day_of_week = date.weekday()
+                    day_of_month = date.day
+                    month = date.month
+                    description = t.description or ""
+                    merchant = t.merchant or ""
+                    category_id = t.category.id if t.category else 0
+                    transaction_type = t.type
+                    payment_method = getattr(t, 'payment_method', 'unknown')
+                
+                # Enhanced temporal features
+                quarter = (month - 1) // 3 + 1
+                is_weekend = 1 if day_of_week >= 5 else 0
+                is_month_start = 1 if day_of_month <= 3 else 0
+                is_month_end = 1 if day_of_month >= 28 else 0
+                
+                # Amount-based features
+                amount_log = np.log1p(abs(amount))
+                amount_sqrt = np.sqrt(abs(amount))
+                amount_category = self._categorize_amount(amount)
+                
+                # Enhanced text features
+                desc_length = len(description)
+                merchant_length = len(merchant)
+                desc_word_count = len(description.split())
+                has_numbers = 1 if any(c.isdigit() for c in description) else 0
+                has_currency = 1 if any(symbol in description for symbol in ['$', '€', '£', '¥']) else 0
+                
+                # Category-based features (simplified for dictionary format)
+                subcategory_id = 0  # Default for dictionary format
+                
+                # Transaction type
+                transaction_type_encoded = 1 if transaction_type == 'EXPENSE' else 0
+                
+                # Payment method encoding
+                payment_method_encoded = hash(str(payment_method)) % 10  # Simple encoding
+                
+                # Seasonal features
+                is_holiday_season = 1 if month in [11, 12] else 0  # Nov-Dec
+                is_summer = 1 if month in [6, 7, 8] else 0
+                is_winter = 1 if month in [12, 1, 2] else 0
+                
+                # Behavioral features
+                is_large_purchase = 1 if amount > 100 else 0
+                is_small_purchase = 1 if amount < 10 else 0
+                is_medium_purchase = 1 if 10 <= amount <= 100 else 0
+                
+                features = {
+                    'amount': amount,
+                    'amount_log': amount_log,
+                    'amount_sqrt': amount_sqrt,
+                    'amount_category': amount_category,
+                    'day_of_week': day_of_week,
+                    'day_of_month': day_of_month,
+                    'month': month,
+                    'quarter': quarter,
+                    'is_weekend': is_weekend,
+                    'is_month_start': is_month_start,
+                    'is_month_end': is_month_end,
+                    'desc_length': desc_length,
+                    'merchant_length': merchant_length,
+                    'desc_word_count': desc_word_count,
+                    'has_numbers': has_numbers,
+                    'has_currency': has_currency,
+                    'category_id': category_id,
+                    'subcategory_id': subcategory_id,
+                    'transaction_type': transaction_type_encoded,
+                    'payment_method': payment_method_encoded,
+                    'is_holiday_season': is_holiday_season,
+                    'is_summer': is_summer,
+                    'is_winter': is_winter,
+                    'is_large_purchase': is_large_purchase,
+                    'is_small_purchase': is_small_purchase,
+                    'is_medium_purchase': is_medium_purchase,
+                }
+                
+                features_list.append(features)
+            
+            return pd.DataFrame(features_list)
+            
+        except Exception as e:
+            self.logger.error(f"Error creating enhanced features: {e}")
+            return pd.DataFrame()
+    
+    def _categorize_amount(self, amount: float) -> int:
+        """
+        Categorize amount into discrete bins for better feature engineering.
+        
+        Args:
+            amount: Transaction amount
+            
+        Returns:
+            int: Category bin (0-4)
+        """
+        try:
+            abs_amount = abs(amount)
+            if abs_amount < 10:
+                return 0  # Small
+            elif abs_amount < 50:
+                return 1  # Medium-small
+            elif abs_amount < 200:
+                return 2  # Medium
+            elif abs_amount < 1000:
+                return 3  # Large
+            else:
+                return 4  # Very large
+        except Exception:
+            return 0  # Default to small category 

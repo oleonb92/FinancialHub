@@ -1,0 +1,7 @@
+{% if language == 'es' %}
+📊 **{{ metric_name }}**
+Tu {{ metric_name.lower() }} para {{ period }} es {{ formatted_value }}.
+{% else %}
+📊 **{{ metric_name }}**
+Your {{ metric_name.lower() }} for {{ period }} is {{ formatted_value }}.
+{% endif %}

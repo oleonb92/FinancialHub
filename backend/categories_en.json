@@ -1,0 +1,115 @@
+[
+  {
+    "category": "Income",
+    "subcategories": [
+      "Salary",
+      "Freelance Income",
+      "Side Hustles",
+      "Sales Revenue",
+      "Rental Income",
+      "Interest Earned",
+      "Dividend Income",
+      "Refunds",
+      "Cash Gifts",
+      "Grants",
+      "Other Income"
+    ]
+  },
+  {
+    "category": "Business Expenses",
+    "subcategories": [
+      "Advertising & Marketing",
+      "Bank & Payment Fees",
+      "Car & Vehicle Expenses",
+      "Client Meals",
+      "Contractor Payments",
+      "Education & Courses",
+      "Employee Wages",
+      "Freelancer Payments",
+      "Home Office Expenses",
+      "Insurance",
+      "Legal & Professional Fees",
+      "Licensing & Permits",
+      "Office Supplies",
+      "Phone & Internet",
+      "Software & Subscriptions",
+      "Taxes & Licenses",
+      "Travel & Transportation",
+      "Utilities",
+      "Website & Hosting",
+      "Other Business Expenses"
+    ]
+  },
+  {
+    "category": "Personal Expenses",
+    "subcategories": [
+      "Groceries",
+      "Dining Out",
+      "Rent or Mortgage",
+      "Utilities",
+      "Phone & Internet",
+      "Health & Dental",
+      "Car Payment",
+      "Gas & Fuel",
+      "Insurance (Home, Auto)",
+      "Clothing & Accessories",
+      "Gifts & Donations",
+      "Subscriptions",
+      "Childcare & School",
+      "Personal Care",
+      "Gym & Fitness",
+      "Entertainment",
+      "Vacations & Travel",
+      "Pet Expenses",
+      "Other Personal Expenses"
+    ]
+  },
+  {
+    "category": "Assets",
+    "subcategories": [
+      "Bank Accounts",
+      "Cash on Hand",
+      "Investments",
+      "Property",
+      "Vehicle",
+      "Business Equipment",
+      "Other Assets"
+    ]
+  },
+  {
+    "category": "Liabilities",
+    "subcategories": [
+      "Credit Cards",
+      "Student Loans",
+      "Personal Loans",
+      "Business Loans",
+      "Mortgage",
+      "Car Loan",
+      "Taxes Owed",
+      "Other Liabilities"
+    ]
+  },
+  {
+    "category": "Savings & Goals",
+    "subcategories": [
+      "Emergency Fund",
+      "Vacation Fund",
+      "Down Payment",
+      "Retirement",
+      "Education Savings",
+      "Investment Savings",
+      "Other Savings"
+    ]
+  },
+  {
+    "category": "Taxes",
+    "subcategories": [
+      "Federal Taxes",
+      "State Taxes",
+      "Sales Tax Paid",
+      "Self-Employment Tax",
+      "Estimated Taxes",
+      "Other Tax Payments"
+    ]
+  }
+]

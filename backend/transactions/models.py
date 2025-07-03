@@ -54,7 +54,6 @@ class Transaction(models.Model):
     date = models.DateTimeField(default=timezone.now)
     description = models.TextField(blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
-    subcategory = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='subcategory_transactions')
 
     source_account = models.ForeignKey(
         Account, on_delete=models.SET_NULL, null=True, blank=True,
@@ -114,6 +113,12 @@ class Transaction(models.Model):
         elif self.status == 'void' and not self.voided_at:
             self.voided_at = timezone.now()
         super().save(*args, **kwargs)
+        # Lanzar análisis de IA en background si la transacción es nueva o se actualiza
+        try:
+            from ai.tasks import analyze_transaction_ai
+            analyze_transaction_ai.delay(self.id)
+        except Exception as e:
+            pass
 
 class Budget(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='budgets')
@@ -133,6 +138,9 @@ class Budget(models.Model):
 
     def get_all_subcategory_ids(self, category):
         """Recursively get all subcategory IDs for a given category."""
+        if not category:
+            return []
+        
         subcategories = list(category.children.all())
         ids = [category.id]
         for subcat in subcategories:

@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from django.utils.translation import gettext_lazy as _
+# Translation handled by TranslationService
 from django.utils import timezone
 from organizations.models import Organization
 

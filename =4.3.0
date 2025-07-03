@@ -1,7 +1,0 @@
-Collecting pymongo
-  Downloading pymongo-4.13.2-cp311-cp311-macosx_11_0_arm64.whl.metadata (22 kB)
-Requirement already satisfied: dnspython<3.0.0,>=1.16.0 in /Users/osmanileon/Desktop/FinancialHub/.venv/lib/python3.11/site-packages (from pymongo) (2.6.1)
-Downloading pymongo-4.13.2-cp311-cp311-macosx_11_0_arm64.whl (857 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 857.4/857.4 kB 12.4 MB/s eta 0:00:00
-Installing collected packages: pymongo
-Successfully installed pymongo-4.13.2

@@ -1,0 +1,13 @@
+{% if language == 'es' %}
+📈 **Comparación de {{ metric_name }}**
+{{ period | title }}: {{ formatted_current }}
+{{ 'mes anterior' if period == 'este mes' else 'período anterior' | title }}: {{ formatted_previous }}
+Cambio: {{ formatted_change }} ({{ formatted_percentage }})
+{% if is_positive %}📈 Tendencia positiva{% else %}📉 Tendencia negativa{% endif %}
+{% else %}
+📈 **{{ metric_name }} Comparison**
+{{ period | title }}: {{ formatted_current }}
+{{ 'previous month' if period == 'this month' else 'previous period' | title }}: {{ formatted_previous }}
+Change: {{ formatted_change }} ({{ formatted_percentage }})
+{% if is_positive %}📈 Positive trend{% else %}📉 Negative trend{% endif %}
+{% endif %}
